@@ -27,7 +27,7 @@ error() { printf "${RED}✗${NC} %s\n" "$*" >&2; }
 header() { printf "\n${BOLD}${CYAN}%s${NC}\n\n" "$*"; }
 
 # --- Configuration ---
-GITHUB_REPO="${LLSTACK_GITHUB_REPO:-web-casa/llstack}"
+GITHUB_REPO="${LLSTACK_GITHUB_REPO:-web-casa/LLStack}"
 VERSION="${LLSTACK_VERSION:-}"
 PREFIX="${LLSTACK_PREFIX:-/usr/local}"
 BIN_DIR="$PREFIX/bin"
@@ -78,8 +78,10 @@ if [ ! -f /etc/os-release ]; then
   exit 1
 fi
 
+_SAVED_VERSION="$VERSION"
 . /etc/os-release
 OS_MAJOR="${VERSION_ID%%.*}"
+VERSION="$_SAVED_VERSION"
 
 case "$ID" in
   rocky|almalinux|rhel|centos)
