@@ -648,6 +648,8 @@ func TestPublishDirectoryWithPipelineIntegration(t *testing.T) {
 		"LLSTACK_PUBLISH_PROVIDER":  "directory",
 		"LLSTACK_PUBLISH_TARGET":    publishDir,
 		"LLSTACK_GIT_REF_NAME":      "",
+		"LLSTACK_EXPECT_TAG_MATCH":  "0",
+		"GITHUB_REF_NAME":           "",
 		"LLSTACK_GITHUB_REPOSITORY": "web-casa/llstack",
 	})
 
@@ -720,6 +722,8 @@ func TestReleasePipelineAndRemoteVerifyScripts(t *testing.T) {
 		"LLSTACK_RUN_TESTS":         "0",
 		"LLSTACK_RUN_SIGN":          "0",
 		"LLSTACK_GIT_REF_NAME":      "",
+		"LLSTACK_EXPECT_TAG_MATCH":  "0",
+		"GITHUB_REF_NAME":           "",
 		"LLSTACK_GITHUB_REPOSITORY": "web-casa/llstack",
 	})
 
