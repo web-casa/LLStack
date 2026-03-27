@@ -1,0 +1,12 @@
+services:
+  el9-apache-acme:
+    build:
+      context: ../
+      dockerfile: docker/images/el9-apache/Dockerfile
+    volumes:
+      - ../docker/fixtures/certbot/mock-certbot.sh:/usr/local/bin/certbot:ro
+    entrypoint: ["/bin/sh", "-lc"]
+    command:
+      - |
+        chmod +x /usr/local/bin/certbot
+        echo "Phase 7 ACME skeleton container ready"

@@ -1,0 +1,63 @@
+{
+  "backend": "ols",
+  "site": "example.com",
+  "items": [
+    {
+      "feature": "server_name",
+      "status": "mapped",
+      "target": "vhost"
+    },
+    {
+      "feature": "server_alias",
+      "status": "mapped",
+      "target": "listener map"
+    },
+    {
+      "feature": "docroot",
+      "status": "mapped",
+      "target": "vhRoot/docRoot"
+    },
+    {
+      "feature": "index",
+      "status": "mapped",
+      "target": "index.indexFiles"
+    },
+    {
+      "feature": "logs",
+      "status": "mapped",
+      "target": "errorlog/accesslog"
+    },
+    {
+      "feature": "tls_basic",
+      "status": "mapped",
+      "target": "vhssl"
+    },
+    {
+      "feature": "php_handler",
+      "status": "mapped",
+      "target": "extprocessor + scripthandler"
+    },
+    {
+      "feature": "rewrite_basic",
+      "status": "mapped",
+      "target": "rewrite.rules"
+    },
+    {
+      "feature": "reverse_proxy_basic",
+      "status": "mapped",
+      "target": "context proxy"
+    },
+    {
+      "feature": "header_rules",
+      "status": "degraded",
+      "target": "not_emitted",
+      "note": "Phase 3 records header rules in parity output but does not compile them into OLS config yet"
+    },
+    {
+      "feature": "access_control",
+      "status": "degraded",
+      "target": "not_emitted",
+      "note": "Phase 3 keeps access control rules in canonical model but does not fully map them to OLS contexts"
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example v0.1.0"
+        required: true
+        type: string
+      publish_release:
+        description: "Create a GitHub Release after build/package/verify"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      PLATFORMS: linux/amd64 linux/arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: vars
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            version="${{ inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME}"
+          fi
+          version="${version#refs/tags/}"
+          if [ -z "$version" ]; then
+            echo "release version is empty" >&2
+            exit 1
+          fi
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Validate release version
+        env:
+          LLSTACK_VERSION: ${{ steps.vars.outputs.version }}
+          LLSTACK_GIT_REF_NAME: ${{ github.ref_name }}
+          LLSTACK_REQUIRE_V_PREFIX: 1
+          LLSTACK_EXPECT_TAG_MATCH: ${{ github.event_name == 'push' && '1' || '0' }}
+          LLSTACK_REQUIRE_EXISTING_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release && '1' || '0' }}
+        run: bash scripts/release/validate-version.sh
+
+      - name: Run release pipeline
+        env:
+          LLSTACK_RUN_SIGN: ${{ secrets.RELEASE_SIGNING_KEY != '' && secrets.RELEASE_SIGNING_PUBKEY != '' && '1' || '0' }}
+          LLSTACK_SIGNING_KEY: ${{ github.workspace }}/release-private.pem
+          LLSTACK_SIGNING_PUBKEY: ${{ github.workspace }}/release-public.pem
+          LLSTACK_VERIFY_PUBKEY: ${{ secrets.RELEASE_SIGNING_PUBKEY != '' && format('{0}/release-public.pem', github.workspace) || '' }}
+          LLSTACK_REQUIRE_SIGNATURES: ${{ secrets.RELEASE_SIGNING_KEY != '' && secrets.RELEASE_SIGNING_PUBKEY != '' && '1' || '0' }}
+          LLSTACK_GIT_REF_NAME: ${{ github.ref_name }}
+          LLSTACK_REQUIRE_V_PREFIX: 1
+          LLSTACK_EXPECT_TAG_MATCH: ${{ github.event_name == 'push' && '1' || '0' }}
+          LLSTACK_REQUIRE_EXISTING_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release && '1' || '0' }}
+          LLSTACK_GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          RELEASE_SIGNING_PUBKEY: ${{ secrets.RELEASE_SIGNING_PUBKEY }}
+        run: |
+          if [ -n "${RELEASE_SIGNING_KEY}" ] && [ -n "${RELEASE_SIGNING_PUBKEY}" ]; then
+            umask 077
+            printf '%s\n' "${RELEASE_SIGNING_KEY}" > release-private.pem
+            printf '%s\n' "${RELEASE_SIGNING_PUBKEY}" > release-public.pem
+          fi
+          make release-pipeline VERSION="${{ steps.vars.outputs.version }}" PLATFORMS="${PLATFORMS}" MODE=release
+
+      - name: Publish release
+        if: ${{ github.event_name == 'push' || inputs.publish_release }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LLSTACK_VERSION: ${{ steps.vars.outputs.version }}
+          LLSTACK_PACKAGE_DIR: dist/packages/${{ steps.vars.outputs.version }}
+          LLSTACK_DIST_DIR: dist/releases/${{ steps.vars.outputs.version }}
+          LLSTACK_PUBLISH_PROVIDER: github
+          LLSTACK_PUBLISH_TARGET: ${{ github.repository }}
+        run: bash scripts/release/publish.sh
+
+      - name: Remote verify published release assets
+        if: ${{ github.event_name == 'push' || inputs.publish_release }}
+        env:
+          LLSTACK_VERSION: ${{ steps.vars.outputs.version }}
+          LLSTACK_REMOTE_BASE_URL: https://github.com/${{ github.repository }}/releases/download/${{ steps.vars.outputs.version }}
+          LLSTACK_VERIFY_PUBKEY: ${{ secrets.RELEASE_SIGNING_PUBKEY != '' && format('{0}/release-public.pem', github.workspace) || '' }}
+          LLSTACK_REQUIRE_SIGNATURES: ${{ secrets.RELEASE_SIGNING_KEY != '' && secrets.RELEASE_SIGNING_PUBKEY != '' && '1' || '0' }}
+          LLSTACK_REMOTE_VERIFY_JSON_OUT: ${{ github.workspace }}/dist/packages/${{ steps.vars.outputs.version }}/remote-verify.json
+          LLSTACK_REMOTE_VERIFY_MD_OUT: ${{ github.workspace }}/dist/packages/${{ steps.vars.outputs.version }}/remote-verify.md
+        run: make remote-verify-release VERSION="${{ steps.vars.outputs.version }}"
+
+      - name: Write post-release verification summary
+        env:
+          LLSTACK_VERSION: ${{ steps.vars.outputs.version }}
+          LLSTACK_RELEASE_URL_FILE: ${{ github.workspace }}/dist/packages/${{ steps.vars.outputs.version }}/release-url.txt
+          LLSTACK_RELEASE_ASSETS_FILE: ${{ github.workspace }}/dist/packages/${{ steps.vars.outputs.version }}/release-assets.txt
+          LLSTACK_RELEASE_REMOTE_VERIFY_JSON: ${{ github.workspace }}/dist/packages/${{ steps.vars.outputs.version }}/remote-verify.json
+        run: make release-summary VERSION="${{ steps.vars.outputs.version }}"
+
+      - name: Upload release bundle artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: llstack-release-${{ steps.vars.outputs.version }}
+          path: |
+            dist/releases/${{ steps.vars.outputs.version }}
+            dist/packages/${{ steps.vars.outputs.version }}

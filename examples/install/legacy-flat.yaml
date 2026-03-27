@@ -1,0 +1,14 @@
+backend: apache
+php_version: "8.3"
+php_versions:
+  - "8.2"
+  - "8.3"
+db: mariadb
+db_tls: enabled
+with_memcached: true
+with_redis: false
+site: example.com
+site_profile: generic
+email: admin@example.com
+non_interactive: true
+dry_run: true

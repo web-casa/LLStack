@@ -1,0 +1,60 @@
+# Build output
+dist/
+/llstack
+
+# Go
+vendor/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS
+.DS_Store
+.Spotlight-V100
+.Trashes
+desktop.ini
+
+# Temp files
+*.tmp
+*.bak
+*.log
+*.pid
+
+# Release signing keys (NEVER commit)
+*.pem
+*.key
+release-private.*
+release-public.*
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+credentials.json
+*.secret
+
+# Claude Code
+.claude/
+
+# Coverage
+coverage.out
+coverage.html
+*.coverprofile
+
+# Debug
+__debug_bin*

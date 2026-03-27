@@ -1,0 +1,43 @@
+services:
+  el9-apache:
+    build:
+      context: ../../
+      dockerfile: docker/images/el9-apache/Dockerfile
+    environment:
+      LLSTACK_SMOKE_BACKEND: apache
+      LLSTACK_SMOKE_SITE: el9-apache.example.com
+  el9-ols:
+    build:
+      context: ../../
+      dockerfile: docker/images/el9-ols/Dockerfile
+    environment:
+      LLSTACK_SMOKE_BACKEND: ols
+      LLSTACK_SMOKE_SITE: el9-ols.example.com
+  el9-lsws:
+    build:
+      context: ../../
+      dockerfile: docker/images/el9-lsws/Dockerfile
+    environment:
+      LLSTACK_SMOKE_BACKEND: lsws
+      LLSTACK_SMOKE_SITE: el9-lsws.example.com
+  el10-apache:
+    build:
+      context: ../../
+      dockerfile: docker/images/el10-apache/Dockerfile
+    environment:
+      LLSTACK_SMOKE_BACKEND: apache
+      LLSTACK_SMOKE_SITE: el10-apache.example.com
+  el10-ols:
+    build:
+      context: ../../
+      dockerfile: docker/images/el10-ols/Dockerfile
+    environment:
+      LLSTACK_SMOKE_BACKEND: ols
+      LLSTACK_SMOKE_SITE: el10-ols.example.com
+  el10-lsws:
+    build:
+      context: ../../
+      dockerfile: docker/images/el10-lsws/Dockerfile
+    environment:
+      LLSTACK_SMOKE_BACKEND: lsws
+      LLSTACK_SMOKE_SITE: el10-lsws.example.com

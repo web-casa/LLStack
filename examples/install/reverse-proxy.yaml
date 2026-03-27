@@ -1,0 +1,10 @@
+backend: ols
+scenario_profile:
+  name: reverse-proxy
+  upstream: http://127.0.0.1:9000
+  install_redis: true
+operator:
+  email: admin@example.com
+execution:
+  non_interactive: true
+  dry_run: true

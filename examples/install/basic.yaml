@@ -1,0 +1,20 @@
+backend: apache
+php:
+  primary_version: "8.3"
+  versions:
+    - "8.2"
+    - "8.3"
+database:
+  provider: mariadb
+  tls: enabled
+cache:
+  memcached: true
+  redis: false
+first_site:
+  domain: example.com
+  profile: generic
+operator:
+  email: admin@example.com
+execution:
+  non_interactive: true
+  dry_run: true

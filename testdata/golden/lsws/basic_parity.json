@@ -1,0 +1,62 @@
+{
+  "backend": "lsws",
+  "site": "example.com",
+  "items": [
+    {
+      "feature": "server_name",
+      "status": "mapped",
+      "target": "apache-style vhost"
+    },
+    {
+      "feature": "server_alias",
+      "status": "mapped",
+      "target": "apache-style vhost"
+    },
+    {
+      "feature": "docroot",
+      "status": "mapped",
+      "target": "apache-style vhost"
+    },
+    {
+      "feature": "index",
+      "status": "mapped",
+      "target": "apache-style vhost"
+    },
+    {
+      "feature": "logs",
+      "status": "mapped",
+      "target": "apache-style vhost"
+    },
+    {
+      "feature": "tls_basic",
+      "status": "mapped",
+      "target": "apache-style vhost"
+    },
+    {
+      "feature": "php_handler",
+      "status": "mapped",
+      "target": "lsphp command + handler"
+    },
+    {
+      "feature": "rewrite_basic",
+      "status": "mapped",
+      "target": "apache-style rewrite"
+    },
+    {
+      "feature": "reverse_proxy_basic",
+      "status": "mapped",
+      "target": "apache-style proxy"
+    },
+    {
+      "feature": "lsws_directive_injection",
+      "status": "mapped",
+      "target": "custom directives"
+    },
+    {
+      "feature": "license_mode",
+      "status": "mapped",
+      "target": "trial",
+      "note": "trial/licensed detection is evaluated at render time"
+    }
+  ]
+}
