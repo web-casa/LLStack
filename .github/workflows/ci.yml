@@ -45,10 +45,10 @@ jobs:
         run: docker compose -f docker/compose/functional.yaml config --services
 
       - name: Sign release artifacts
-        if: ${{ secrets.RELEASE_SIGNING_KEY != '' && secrets.RELEASE_SIGNING_PUBKEY != '' }}
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
           RELEASE_SIGNING_PUBKEY: ${{ secrets.RELEASE_SIGNING_PUBKEY }}
+        if: env.RELEASE_SIGNING_KEY != '' && env.RELEASE_SIGNING_PUBKEY != ''
         run: |
           umask 077
           printf '%s\n' "${RELEASE_SIGNING_KEY}" > release-private.pem
