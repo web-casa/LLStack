@@ -1,0 +1,11 @@
+flask>=3.1
+flask-cors>=5.0
+pyjwt>=2.9
+bcrypt>=4.2
+pyotp>=2.9
+qrcode[pil]>=8.0
+psutil>=6.1
+gunicorn>=23.0
+flask-sock>=0.7
+libsql-experimental>=0.0.45
+packaging>=24.0

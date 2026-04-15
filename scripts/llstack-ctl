@@ -1,0 +1,162 @@
+#!/bin/bash
+set -euo pipefail
+
+# LLStack Control — unified CLI entry point
+# Usage: llstack-ctl <module> <action> [args...]
+#
+# Modules:
+#   site     — Site management (create, list, delete)
+#   php      — PHP management (install, list, config)
+#   db       — Database management (create, import, export, clone)
+#   redis    — Redis management (create, status, control)
+#   wordpress — WordPress management (install, scan)
+#   ssl      — SSL certificate management (issue, renew, status)
+#   system   — System utilities (repair, cgroup, bandwidth)
+
+LLSTACK_API="${LLSTACK_API_URL:-http://127.0.0.1:8001}"
+CLI_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPTS_DIR="$CLI_DIR"
+
+# Check if llstack-cli (Python API client) is available
+LLSTACK_CLI=""
+for p in /opt/llstack/scripts/llstack-cli.py "$CLI_DIR/llstack-cli.py"; do
+    [[ -f "$p" ]] && { LLSTACK_CLI="$p"; break; }
+done
+
+show_help() {
+    cat << 'EOF'
+LLStack Control — Unified CLI
+
+Usage: llstack-ctl <module> <action> [options]
+
+Modules:
+  site create    --domain <domain> --user <user> [--php <version>]
+  site list
+  site delete    --domain <domain>
+
+  php install    --version <version>
+  php list
+  php config     --site <domain> --key <key> --value <value>
+
+  db create      --engine <engine> --name <name>
+  db import      --engine <engine> --name <name> --file <path>
+  db export      --engine <engine> --name <name>
+  db clone       --engine <engine> --source <name> --target <name>
+  db processes   [--engine <engine>]
+
+  redis create   --user <username>
+  redis status   --user <username>
+  redis control  --user <username> --action <start|stop|restart>
+
+  wordpress install  --site-id <id> --admin-email <email>
+  wordpress scan
+
+  ssl issue      --domain <domain>
+  ssl renew      [--dry-run]
+  ssl status     --domain <domain>
+
+  system repair  [--component <vhost|redis|all>]
+  system cgroup  --user <username>
+  system bandwidth
+
+Examples:
+  llstack-ctl site create --domain example.com --user webuser
+  llstack-ctl php install --version php83
+  llstack-ctl db import --engine mariadb --name mydb --file /tmp/dump.sql
+  llstack-ctl system repair --component all
+EOF
+}
+
+MODULE="${1:-help}"
+ACTION="${2:-}"
+shift 2 2>/dev/null || true
+
+case "$MODULE" in
+    help|--help|-h)
+        show_help
+        ;;
+
+    site)
+        case "$ACTION" in
+            create)  sudo "$SCRIPTS_DIR/site/site-create.sh" "$@" ;;
+            delete)  sudo "$SCRIPTS_DIR/site/site-delete.sh" "$@" ;;
+            list)
+                DB_PATH="${LLSTACK_DB_PATH:-/opt/llstack/data/llstack.db}"
+                sqlite3 -header -column "$DB_PATH" \
+                    "SELECT id, domain, php_version, ssl_enabled, status FROM sites ORDER BY id" 2>/dev/null
+                ;;
+            *) echo "Usage: llstack-ctl site <create|list|delete> [options]"; exit 1 ;;
+        esac
+        ;;
+
+    php)
+        case "$ACTION" in
+            install) sudo "$SCRIPTS_DIR/php/php-install.sh" "$@" ;;
+            list)
+                DB_PATH="${LLSTACK_DB_PATH:-/opt/llstack/data/llstack.db}"
+                sqlite3 -header -column "$DB_PATH" \
+                    "SELECT version, display_version, status FROM php_versions ORDER BY version" 2>/dev/null || \
+                ls /opt/remi/php*/root/usr/bin/lsphp 2>/dev/null | sed 's|.*/remi/||;s|/.*||'
+                ;;
+            *) echo "Usage: llstack-ctl php <install|list> [options]"; exit 1 ;;
+        esac
+        ;;
+
+    db)
+        case "$ACTION" in
+            create)  sudo "$SCRIPTS_DIR/db/db-create.sh" "$@" ;;
+            import)  sudo "$SCRIPTS_DIR/db/db-import.sh" "$@" ;;
+            export)  sudo "$SCRIPTS_DIR/db/db-export.sh" "$@" ;;
+            clone)   sudo "$SCRIPTS_DIR/db/db-clone.sh" "$@" ;;
+            processes)
+                ENGINE="${1:-mariadb}"
+                if [[ "$ENGINE" == "mariadb" || "$ENGINE" == "mysql" ]]; then
+                    mysql -e "SHOW FULL PROCESSLIST" 2>/dev/null
+                else
+                    sudo -u postgres psql -c "SELECT pid, usename, datname, state, query FROM pg_stat_activity WHERE state != 'idle'" 2>/dev/null
+                fi
+                ;;
+            *) echo "Usage: llstack-ctl db <create|import|export|clone|processes> [options]"; exit 1 ;;
+        esac
+        ;;
+
+    redis)
+        case "$ACTION" in
+            create)  sudo "$SCRIPTS_DIR/redis/redis-instance-create.sh" "$@" ;;
+            status)  sudo "$SCRIPTS_DIR/redis/redis-instance-status.sh" "$@" ;;
+            control) sudo "$SCRIPTS_DIR/redis/redis-instance-control.sh" "$@" ;;
+            *) echo "Usage: llstack-ctl redis <create|status|control> [options]"; exit 1 ;;
+        esac
+        ;;
+
+    wordpress|wp)
+        case "$ACTION" in
+            scan)    sudo "$SCRIPTS_DIR/wordpress/wp-scan.sh" "$@" ;;
+            install) sudo "$SCRIPTS_DIR/wordpress/wp-install.sh" "$@" ;;
+            *) echo "Usage: llstack-ctl wordpress <scan|install> [options]"; exit 1 ;;
+        esac
+        ;;
+
+    ssl)
+        case "$ACTION" in
+            issue)  sudo "$SCRIPTS_DIR/ssl/ssl-issue.sh" "$@" ;;
+            renew)  sudo "$SCRIPTS_DIR/ssl/ssl-auto-renew.sh" "$@" ;;
+            *) echo "Usage: llstack-ctl ssl <issue|renew> [options]"; exit 1 ;;
+        esac
+        ;;
+
+    system)
+        case "$ACTION" in
+            repair)    sudo "$SCRIPTS_DIR/system/llstack-repair.sh" "$@" ;;
+            cgroup)    sudo "$SCRIPTS_DIR/system/cgroup-status.sh" "$@" ;;
+            bandwidth) sudo "$SCRIPTS_DIR/system/bandwidth-collect.sh" "$@" ;;
+            *) echo "Usage: llstack-ctl system <repair|cgroup|bandwidth> [options]"; exit 1 ;;
+        esac
+        ;;
+
+    *)
+        echo "Unknown module: $MODULE"
+        echo "Run 'llstack-ctl help' for usage"
+        exit 1
+        ;;
+esac

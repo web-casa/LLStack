@@ -1,0 +1,14 @@
+{
+  "name": "Laravel",
+  "slug": "laravel",
+  "install_method": "composer",
+  "composer_command": "composer create-project laravel/laravel .",
+  "requires_db": true,
+  "db_prefix": "",
+  "php_min": "82",
+  "categories": ["framework"],
+  "setup_commands": [],
+  "post_install": [
+    "php artisan key:generate --force"
+  ]
+}

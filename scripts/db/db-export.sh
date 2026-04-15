@@ -1,0 +1,55 @@
+#!/bin/bash
+set -euo pipefail
+
+# Export database dump with optimized flags
+# Usage: db-export.sh --engine <engine> --name <db_name> [--schema-only]
+
+ENGINE="" NAME="" SCHEMA_ONLY=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --engine)      ENGINE="$2"; shift 2 ;;
+        --name)        NAME="$2"; shift 2 ;;
+        --schema-only) SCHEMA_ONLY=true; shift ;;
+        *) echo '{"ok":false,"error":"unknown_arg: '"$1"'"}' >&2; exit 1 ;;
+    esac
+done
+
+[[ -z "$ENGINE" || -z "$NAME" ]] && { echo '{"ok":false,"error":"missing_args"}' >&2; exit 1; }
+
+# Validate DB name
+if ! echo "$NAME" | grep -qP '^[a-zA-Z][a-zA-Z0-9_]{0,63}$'; then
+    echo '{"ok":false,"error":"invalid_db_name"}' >&2; exit 1
+fi
+
+umask 0077
+OUTPUT=$(mktemp "/tmp/.llstack_export_XXXXXXXXXXXX.sql.gz")
+
+case "$ENGINE" in
+    mariadb|mysql)
+        DUMP_ARGS=(
+            --single-transaction
+            --quick
+            --extended-insert
+            --routines
+            --triggers
+            --events
+        )
+        if [[ "$SCHEMA_ONLY" == true ]]; then
+            DUMP_ARGS+=(--no-data)
+        fi
+        mysqldump "${DUMP_ARGS[@]}" "$NAME" 2>/dev/null | gzip > "$OUTPUT"
+        ;;
+    postgresql)
+        PG_ARGS=()
+        if [[ "$SCHEMA_ONLY" == true ]]; then
+            PG_ARGS+=(--schema-only)
+        fi
+        sudo -u postgres pg_dump "${PG_ARGS[@]}" "$NAME" 2>/dev/null | gzip > "$OUTPUT"
+        ;;
+    *) rm -f "$OUTPUT"; echo '{"ok":false,"error":"unsupported_engine"}' >&2; exit 1 ;;
+esac
+
+chmod 600 "$OUTPUT"
+SIZE=$(stat -c%s "$OUTPUT" 2>/dev/null || echo 0)
+echo "{\"ok\":true,\"data\":{\"path\":\"$OUTPUT\",\"size\":$SIZE,\"schema_only\":$SCHEMA_ONLY}}"

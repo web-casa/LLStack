@@ -1,0 +1,12 @@
+{
+  "name": "Typecho",
+  "slug": "typecho",
+  "download_url": "https://github.com/typecho/typecho/releases/latest/download/typecho.zip",
+  "extract_dir": "typecho",
+  "requires_db": true,
+  "db_prefix": "typecho_",
+  "php_min": "74",
+  "categories": ["cms", "blog"],
+  "setup_commands": [],
+  "post_install": []
+}

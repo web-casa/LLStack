@@ -1,0 +1,47 @@
+policy_module(llstack, 1.0.0)
+
+########################################
+# LLStack Panel SELinux Policy
+# Allows the panel backend (gunicorn) to:
+# - Listen on port 8001 (internal API)
+# - Connect to databases (MariaDB 3306, PostgreSQL 5432)
+# - Execute shell scripts via sudo
+# - Read/write panel data directory
+# - Manage LiteHttpd configs and reload
+# - Connect to Redis sockets
+########################################
+
+require {
+    type httpd_t;
+    type httpd_sys_content_t;
+    type httpd_sys_rw_content_t;
+    type mysqld_port_t;
+    type postgresql_port_t;
+    type unreserved_port_t;
+    type init_t;
+    type bin_t;
+    type shell_exec_t;
+    type sudo_exec_t;
+    type usr_t;
+    class tcp_socket { name_bind name_connect };
+    class unix_stream_socket connectto;
+    class file { read write create unlink execute execute_no_trans getattr open };
+    class dir { read write search add_name remove_name };
+    class process { transition signal };
+}
+
+# Allow gunicorn to bind port 8001
+allow httpd_t unreserved_port_t:tcp_socket name_bind;
+
+# Allow connections to MySQL/MariaDB and PostgreSQL
+allow httpd_t mysqld_port_t:tcp_socket name_connect;
+allow httpd_t postgresql_port_t:tcp_socket name_connect;
+
+# Allow reading/writing panel data
+allow httpd_t usr_t:file { read write create unlink getattr open };
+allow httpd_t usr_t:dir { read write search add_name remove_name };
+
+# Allow executing scripts
+allow httpd_t shell_exec_t:file { read execute execute_no_trans getattr open };
+allow httpd_t bin_t:file { read execute execute_no_trans getattr open };
+allow httpd_t sudo_exec_t:file { read execute execute_no_trans getattr open };

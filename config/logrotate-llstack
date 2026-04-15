@@ -1,0 +1,11 @@
+/opt/llstack/logs/*.log
+/var/log/llstack-*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    create 0640 llstack llstack
+}
