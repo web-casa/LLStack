@@ -3,7 +3,7 @@
   <p><strong>Open-source server management panel powered by LiteHttpd</strong></p>
   <p>Apache-level .htaccess compatibility · LiteSpeed-level performance</p>
   <p>
-    <a href="https://llstack.com">Documentation</a> ·
+    <a href="https://llstack.com">Documentation</a> · <a href="README_CN.md">简体中文</a> ·
     <a href="https://llstack.com/guide/getting-started/">Quick Start</a> ·
     <a href="https://llstack.com/reference/changelog/">Changelog</a>
   </p>
