@@ -17,8 +17,15 @@ fi
 echo ">>> Enabling Percona Server $VERSION..."
 if [[ "$VERSION" == "8.0" ]]; then
     percona-release setup ps80 2>&1
+elif [[ "$VERSION" == "8.4" ]]; then
+    # Try multiple known setup strings for Percona 8.4
+    percona-release setup ps-8.4-lts 2>&1 || \
+    percona-release setup ps-84-lts 2>&1 || \
+    percona-release setup ps84 2>&1 || \
+    { echo '{"ok":false,"error":"percona_84_setup_failed"}' >&2; exit 1; }
 else
-    percona-release setup ps-84-lts 2>&1 || percona-release setup ps80 2>&1
+    echo "Unsupported version: $VERSION" >&2
+    exit 1
 fi
 
 echo ">>> Installing Percona Server..."

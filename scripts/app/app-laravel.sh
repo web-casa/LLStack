@@ -7,7 +7,18 @@ PHP_SHORT="${PHP_VERSION//php/}"
 COMPOSER="/opt/remi/php${PHP_SHORT}/root/usr/bin/php /usr/local/bin/composer"
 # Install composer if not exists
 if [[ ! -f /usr/local/bin/composer ]]; then
-    curl -sS https://getcomposer.org/installer | /opt/remi/php${PHP_SHORT}/root/usr/bin/php -- --install-dir=/usr/local/bin --filename=composer 2>/dev/null
+    PHP_BIN="/opt/remi/php${PHP_SHORT}/root/usr/bin/php"
+    SETUP_FILE=$(mktemp /tmp/composer-setup.XXXXXX.php)
+    trap 'rm -f "$SETUP_FILE"' EXIT
+    EXPECTED_SIG=$(curl -sS https://composer.github.io/installer.sig)
+    curl -sS https://getcomposer.org/installer -o "$SETUP_FILE"
+    ACTUAL_SIG=$($PHP_BIN -r "echo hash_file('sha384', '$SETUP_FILE');")
+    if [[ "$EXPECTED_SIG" != "$ACTUAL_SIG" ]]; then
+        rm -f "$SETUP_FILE"
+        echo '{"ok":false,"error":"composer_checksum_mismatch"}' >&2; exit 1
+    fi
+    $PHP_BIN "$SETUP_FILE" --install-dir=/usr/local/bin --filename=composer 2>/dev/null
+    rm -f "$SETUP_FILE"
 fi
 SITE_USER=$(stat -c '%U' "$DOC_ROOT")
 cd "$(dirname "$DOC_ROOT")"

@@ -1,20 +1,21 @@
 #!/bin/bash
 set -euo pipefail
 # Install PostgreSQL from PGDG official repo
-# Usage: db-install-postgresql.sh --version <16|17>
+# Usage: db-install-postgresql.sh --version <16|17|18>
 
 VERSION=""
 while [[ $# -gt 0 ]]; do case "$1" in --version) VERSION="$2"; shift 2 ;; *) shift ;; esac; done
-[[ -z "$VERSION" ]] && { echo "Usage: --version <16|17>" >&2; exit 1; }
+[[ -z "$VERSION" ]] && { echo "Usage: --version <16|17|18>" >&2; exit 1; }
 
 MAJOR_VER=$(. /etc/os-release; echo "${VERSION_ID%%.*}")
+ARCH=$(uname -m)
 
 echo ">>> Setting up PostgreSQL PGDG repository..."
 if ! rpm -q pgdg-redhat-repo &>/dev/null; then
-    dnf install -y "https://download.postgresql.org/pub/repos/yum/reporpms/EL-${MAJOR_VER}-x86_64/pgdg-redhat-repo-latest.noarch.rpm" 2>&1
+    dnf install -y "https://download.postgresql.org/pub/repos/yum/reporpms/EL-${MAJOR_VER}-${ARCH}/pgdg-redhat-repo-latest.noarch.rpm" 2>&1
 fi
 
-# Disable built-in PostgreSQL module
+# Disable built-in PostgreSQL module (needed on EL8, harmless on EL9+)
 dnf -qy module disable postgresql 2>/dev/null || true
 
 echo ">>> Installing PostgreSQL $VERSION..."

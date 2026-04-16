@@ -49,9 +49,12 @@ case "$ENGINE" in
 
         # Create user and grant (password via stdin to avoid shell escaping issues)
         if [[ -n "$DB_USER" && -n "$DB_PASS" ]]; then
-            # Use mysql_native_password explicitly (MariaDB 10.11+ defaults to unix_socket)
-            ESCAPED_PASS=$(printf '%s' "$DB_PASS" | sed "s/'/''/g")
+            # MariaDB: use mysql_native_password (10.11+ defaults to unix_socket)
+            # MySQL/Percona: use mysql_native_password (8.0+ defaults to caching_sha2_password)
+            ESCAPED_PASS="${DB_PASS//\\/\\\\}"
+            ESCAPED_PASS="${ESCAPED_PASS//\'/\'\'}"
             mysql -e "CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('$ESCAPED_PASS');" 2>/dev/null || \
+            mysql -e "CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED WITH mysql_native_password BY '$ESCAPED_PASS';" 2>/dev/null || \
             mysql -e "CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$ESCAPED_PASS';"
             mysql -e "GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost';"
             mysql -e "FLUSH PRIVILEGES;"

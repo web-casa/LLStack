@@ -1,12 +1,14 @@
 #!/bin/bash
 set -euo pipefail
-# Install Redis server (REMI module on EL10, EPEL on EL9)
+# Install Redis server
+# EL9: redis from AppStream (7.x)
+# EL10: redis or valkey from default repos
 
 MAJOR_VER=$(. /etc/os-release; echo "${VERSION_ID%%.*}")
 
 echo ">>> Installing Redis..."
 if [[ "$MAJOR_VER" == "10" ]]; then
-    dnf module enable redis:remi-8.6 -y 2>/dev/null || true
+    # EL10 ships Redis 7.x or Valkey as replacement
     dnf install -y redis 2>&1 || dnf install -y valkey 2>&1
 else
     dnf install -y redis 2>&1

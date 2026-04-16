@@ -18,7 +18,14 @@ done
 case "$SERVICE" in
     mariadb) PKG="MariaDB-server" SVC="mariadb" ;;
     postgresql) PKG="postgresql-server" SVC="postgresql" ;;
-    redis) PKG="redis" SVC="redis" ;;
+    redis)
+        # Detect Redis or Valkey
+        if rpm -q valkey &>/dev/null; then
+            PKG="valkey" SVC="valkey"
+        else
+            PKG="redis" SVC="redis"
+        fi
+        ;;
     *) echo '{"ok":false,"error":"unsupported_service"}' >&2; exit 1 ;;
 esac
 

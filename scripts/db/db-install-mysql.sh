@@ -1,26 +1,41 @@
 #!/bin/bash
 set -euo pipefail
 # Install MySQL from official Oracle repo
-# Usage: db-install-mysql.sh --version <8.0|8.4>
+# Usage: db-install-mysql.sh --version <8.0|8.4|9.6>
 
 VERSION=""
 while [[ $# -gt 0 ]]; do case "$1" in --version) VERSION="$2"; shift 2 ;; *) shift ;; esac; done
-[[ -z "$VERSION" ]] && { echo "Usage: --version <8.0|8.4>" >&2; exit 1; }
+[[ -z "$VERSION" ]] && { echo "Usage: --version <8.0|8.4|9.6>" >&2; exit 1; }
 
 MAJOR_VER=$(. /etc/os-release; echo "${VERSION_ID%%.*}")
 
 echo ">>> Setting up MySQL $VERSION official repository..."
 if ! rpm -q mysql84-community-release &>/dev/null && ! rpm -q mysql80-community-release &>/dev/null; then
-    dnf install -y "https://dev.mysql.com/get/mysql84-community-release-el${MAJOR_VER}-1.noarch.rpm" 2>&1 || true
+    # Use the latest available RPM release (try descending, Oracle increments the suffix)
+    for REL in 5 4 3 2 1; do
+        if dnf install -y "https://dev.mysql.com/get/mysql84-community-release-el${MAJOR_VER}-${REL}.noarch.rpm" 2>&1; then
+            break
+        fi
+    done
 fi
 
-# Enable the correct version
+# Disable all version repos first, then enable the requested one
+echo ">>> Enabling MySQL $VERSION repository..."
+dnf config-manager --disable mysql80-community 2>/dev/null || true
+dnf config-manager --disable mysql-8.4-lts-community 2>/dev/null || true
+dnf config-manager --disable mysql-innovation-community 2>/dev/null || true
+dnf config-manager --disable mysql-tools-8.4-lts-community 2>/dev/null || true
+dnf config-manager --disable mysql-tools-innovation-community 2>/dev/null || true
+
 if [[ "$VERSION" == "8.0" ]]; then
-    dnf config-manager --disable mysql-8.4-lts-community 2>/dev/null || true
     dnf config-manager --enable mysql80-community 2>/dev/null || true
-else
+elif [[ "$VERSION" == "8.4" ]]; then
     dnf config-manager --enable mysql-8.4-lts-community 2>/dev/null || true
-    dnf config-manager --disable mysql80-community 2>/dev/null || true
+    dnf config-manager --enable mysql-tools-8.4-lts-community 2>/dev/null || true
+else
+    # 9.x Innovation track
+    dnf config-manager --enable mysql-innovation-community 2>/dev/null || true
+    dnf config-manager --enable mysql-tools-innovation-community 2>/dev/null || true
 fi
 
 echo ">>> Installing MySQL $VERSION..."

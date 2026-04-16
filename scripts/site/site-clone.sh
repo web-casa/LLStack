@@ -79,9 +79,12 @@ if [[ -n "$SOURCE_DB" && -n "$TARGET_DB" ]]; then
     # Grant same user access
     DB_USER="${TARGET_DB}_user"
     DB_PASS=$(openssl rand -hex 8)
-    # Use mysql_native_password explicitly (MariaDB 10.11+ defaults to unix_socket)
-    mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('${DB_PASS}');" 2>/dev/null || \
-    mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';" 2>/dev/null || true
+    ESCAPED_PASS="${DB_PASS//\\/\\\\}"
+    ESCAPED_PASS="${ESCAPED_PASS//\'/\'\'}"
+    # MariaDB: IDENTIFIED VIA; MySQL/Percona: IDENTIFIED WITH
+    mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('${ESCAPED_PASS}');" 2>/dev/null || \
+    mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED WITH mysql_native_password BY '${ESCAPED_PASS}';" 2>/dev/null || \
+    mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${ESCAPED_PASS}';" 2>/dev/null || true
     mysql -e "GRANT ALL PRIVILEGES ON \`${TARGET_DB}\`.* TO '${DB_USER}'@'localhost'; FLUSH PRIVILEGES;" 2>/dev/null || true
     echo "    DB user: ${DB_USER} (password stored securely)"
 else

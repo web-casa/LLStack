@@ -239,7 +239,8 @@ setup_ssl_cron() {
     log "Setting up SSL auto-renewal cron..."
     local ssl_cmd="0 3 * * * $LLSTACK_DIR/scripts/ssl/ssl-check-renew.sh >> /var/log/llstack-ssl-renew.log 2>&1"
     local db_cmd="30 2 * * * $LLSTACK_DIR/scripts/backup/backup-panel-db.sh >> /var/log/llstack-panel-backup.log 2>&1"
-    ( (crontab -l 2>/dev/null || true) | grep -v ssl-check-renew | grep -v backup-panel-db || true; echo "$ssl_cmd"; echo "$db_cmd") | crontab -
+    local wp_cmd="*/30 * * * * $LLSTACK_DIR/scripts/wordpress/wp-auto-update-check.sh 2>&1"
+    ( (crontab -l 2>/dev/null || true) | grep -v ssl-check-renew | grep -v backup-panel-db | grep -v wp-auto-update-check || true; echo "$ssl_cmd"; echo "$db_cmd"; echo "$wp_cmd") | crontab -
 }
 
 setup_logrotate() {
@@ -295,6 +296,8 @@ main() {
     setup_ssl_cron
     setup_firewall
     setup_logrotate
+    # Install llstack-ctl CLI
+    ln -sf "$LLSTACK_DIR/scripts/llstack-ctl" /usr/local/bin/llstack-ctl
     print_summary
 }
 

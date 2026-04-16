@@ -43,8 +43,9 @@ case "$ENGINE" in
         # Escape backslashes first, then single quotes (prevents \' bypass)
         ESCAPED_PASS="${DB_PASS//\\/\\\\}"
         ESCAPED_PASS="${ESCAPED_PASS//\'/\'\'}"
-        # Use mysql_native_password explicitly (MariaDB 10.11+ defaults to unix_socket)
+        # MariaDB: IDENTIFIED VIA; MySQL/Percona: IDENTIFIED WITH
         mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'${HOST}' IDENTIFIED VIA mysql_native_password USING PASSWORD('${ESCAPED_PASS}');" 2>/dev/null || \
+        mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'${HOST}' IDENTIFIED WITH mysql_native_password BY '${ESCAPED_PASS}';" 2>/dev/null || \
         mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'${HOST}' IDENTIFIED BY '${ESCAPED_PASS}';"
         mysql -e "GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'${HOST}';"
         mysql -e "FLUSH PRIVILEGES;"

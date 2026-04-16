@@ -7,5 +7,5 @@ qrcode[pil]>=8.0
 psutil>=6.1
 gunicorn>=23.0
 flask-sock>=0.7
-libsql-experimental>=0.0.45
 packaging>=24.0
+pycryptodome>=3.20

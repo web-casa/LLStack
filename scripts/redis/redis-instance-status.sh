@@ -6,6 +6,7 @@ set -euo pipefail
 
 USER=""
 PASSWORD="${REDIS_PASSWORD:-}"
+REDIS_CLI_BIN=$(command -v redis-cli 2>/dev/null || command -v valkey-cli 2>/dev/null || echo "redis-cli")
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -32,7 +33,7 @@ fi
 # Get INFO from Redis (password via REDISCLI_AUTH env to avoid /proc exposure)
 export REDISCLI_AUTH="${PASSWORD}"
 
-INFO=$(redis-cli -s "$SOCKET" --no-auth-warning INFO 2>/dev/null || echo "")
+INFO=$($REDIS_CLI_BIN -s "$SOCKET" --no-auth-warning INFO 2>/dev/null || echo "")
 
 if [[ -z "$INFO" ]]; then
     echo '{"ok": true, "data": {"status": "running", "memory_used_bytes": 0, "memory_peak_bytes": 0, "connected_clients": 0, "hit_rate": 0, "uptime_seconds": 0}}'

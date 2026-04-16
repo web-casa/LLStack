@@ -1,162 +1,538 @@
 #!/bin/bash
 set -euo pipefail
+# ============================================================================
+# llstack-ctl — Unified CLI for LLStack Panel
+# Usage: llstack-ctl <command> <subcommand> [options]
+# ============================================================================
 
-# LLStack Control — unified CLI entry point
-# Usage: llstack-ctl <module> <action> [args...]
-#
-# Modules:
-#   site     — Site management (create, list, delete)
-#   php      — PHP management (install, list, config)
-#   db       — Database management (create, import, export, clone)
-#   redis    — Redis management (create, status, control)
-#   wordpress — WordPress management (install, scan)
-#   ssl      — SSL certificate management (issue, renew, status)
-#   system   — System utilities (repair, cgroup, bandwidth)
-
-LLSTACK_API="${LLSTACK_API_URL:-http://127.0.0.1:8001}"
 CLI_DIR="$(cd "$(dirname "$0")" && pwd)"
-SCRIPTS_DIR="$CLI_DIR"
+SCRIPTS_DIR="${LLSTACK_SCRIPTS_DIR:-$CLI_DIR}"
+PANEL_DB="${LLSTACK_DB_PATH:-/opt/llstack/data/llstack.db}"
+VERSION="0.8.3"
 
-# Check if llstack-cli (Python API client) is available
-LLSTACK_CLI=""
-for p in /opt/llstack/scripts/llstack-cli.py "$CLI_DIR/llstack-cli.py"; do
-    [[ -f "$p" ]] && { LLSTACK_CLI="$p"; break; }
-done
+# ── Colors ──
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 
-show_help() {
-    cat << 'EOF'
-LLStack Control — Unified CLI
+info()   { echo -e "${GREEN}✓${NC} $*"; }
+warn()   { echo -e "${YELLOW}⚠${NC} $*"; }
+error()  { echo -e "${RED}✗${NC} $*" >&2; }
+header() { echo -e "\n${BOLD}${CYAN}$*${NC}"; }
 
-Usage: llstack-ctl <module> <action> [options]
+# ── Temp file cleanup ──
+_TMP_FILES=()
+cleanup_tmp() { for f in "${_TMP_FILES[@]:-}"; do rm -f "$f" 2>/dev/null; done; }
+trap cleanup_tmp EXIT
 
-Modules:
-  site create    --domain <domain> --user <user> [--php <version>]
-  site list
-  site delete    --domain <domain>
-
-  php install    --version <version>
-  php list
-  php config     --site <domain> --key <key> --value <value>
-
-  db create      --engine <engine> --name <name>
-  db import      --engine <engine> --name <name> --file <path>
-  db export      --engine <engine> --name <name>
-  db clone       --engine <engine> --source <name> --target <name>
-  db processes   [--engine <engine>]
-
-  redis create   --user <username>
-  redis status   --user <username>
-  redis control  --user <username> --action <start|stop|restart>
-
-  wordpress install  --site-id <id> --admin-email <email>
-  wordpress scan
-
-  ssl issue      --domain <domain>
-  ssl renew      [--dry-run]
-  ssl status     --domain <domain>
-
-  system repair  [--component <vhost|redis|all>]
-  system cgroup  --user <username>
-  system bandwidth
-
-Examples:
-  llstack-ctl site create --domain example.com --user webuser
-  llstack-ctl php install --version php83
-  llstack-ctl db import --engine mariadb --name mydb --file /tmp/dump.sql
-  llstack-ctl system repair --component all
-EOF
+# ── Helpers ──
+run_script() {
+    local script_path="$SCRIPTS_DIR/$1/$2"; shift 2
+    [[ ! -f "$script_path" ]] && { error "Script not found: $script_path"; return 1; }
+    sudo bash "$script_path" "$@"
 }
 
-MODULE="${1:-help}"
-ACTION="${2:-}"
-shift 2 2>/dev/null || true
+write_pw_file() {
+    local tmp; tmp=$(mktemp /tmp/llstack-pw.XXXXXX)
+    chmod 600 "$tmp"; printf '%s' "$1" > "$tmp"
+    _TMP_FILES+=("$tmp"); echo "$tmp"
+}
 
-case "$MODULE" in
-    help|--help|-h)
-        show_help
-        ;;
+need_arg() {
+    [[ $# -ge 2 ]] || { error "Option $1 requires a value"; exit 1; }
+}
 
-    site)
-        case "$ACTION" in
-            create)  sudo "$SCRIPTS_DIR/site/site-create.sh" "$@" ;;
-            delete)  sudo "$SCRIPTS_DIR/site/site-delete.sh" "$@" ;;
-            list)
-                DB_PATH="${LLSTACK_DB_PATH:-/opt/llstack/data/llstack.db}"
-                sqlite3 -header -column "$DB_PATH" \
-                    "SELECT id, domain, php_version, ssl_enabled, status FROM sites ORDER BY id" 2>/dev/null
-                ;;
-            *) echo "Usage: llstack-ctl site <create|list|delete> [options]"; exit 1 ;;
-        esac
-        ;;
+confirm() {
+    echo -en "${YELLOW}⚠${NC} $1 [y/N] "
+    read -r ans; [[ "$ans" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
+}
 
-    php)
-        case "$ACTION" in
-            install) sudo "$SCRIPTS_DIR/php/php-install.sh" "$@" ;;
-            list)
-                DB_PATH="${LLSTACK_DB_PATH:-/opt/llstack/data/llstack.db}"
-                sqlite3 -header -column "$DB_PATH" \
-                    "SELECT version, display_version, status FROM php_versions ORDER BY version" 2>/dev/null || \
-                ls /opt/remi/php*/root/usr/bin/lsphp 2>/dev/null | sed 's|.*/remi/||;s|/.*||'
-                ;;
-            *) echo "Usage: llstack-ctl php <install|list> [options]"; exit 1 ;;
-        esac
-        ;;
+db_table() {
+    [[ ! -f "$PANEL_DB" ]] && { error "Panel DB not found: $PANEL_DB"; return 1; }
+    sqlite3 -header -column "$PANEL_DB" "$1" 2>/dev/null
+}
 
-    db)
-        case "$ACTION" in
-            create)  sudo "$SCRIPTS_DIR/db/db-create.sh" "$@" ;;
-            import)  sudo "$SCRIPTS_DIR/db/db-import.sh" "$@" ;;
-            export)  sudo "$SCRIPTS_DIR/db/db-export.sh" "$@" ;;
-            clone)   sudo "$SCRIPTS_DIR/db/db-clone.sh" "$@" ;;
-            processes)
-                ENGINE="${1:-mariadb}"
-                if [[ "$ENGINE" == "mariadb" || "$ENGINE" == "mysql" ]]; then
-                    mysql -e "SHOW FULL PROCESSLIST" 2>/dev/null
-                else
-                    sudo -u postgres psql -c "SELECT pid, usename, datname, state, query FROM pg_stat_activity WHERE state != 'idle'" 2>/dev/null
+# ============================================================================
+# SITE
+# ============================================================================
+cmd_site() {
+    local sub="${1:-help}"; shift || true
+    case "$sub" in
+        list)
+            header "Sites"
+            db_table "SELECT id, domain, php_version, ssl_enabled AS ssl, status, doc_root FROM sites ORDER BY id"
+            ;;
+        create)
+            local domain="" user="" php="php83" aliases=""
+            while [[ $# -gt 0 ]]; do case "$1" in
+                --domain) need_arg "$@"; domain="$2"; shift 2 ;; --user) need_arg "$@"; user="$2"; shift 2 ;;
+                --php) need_arg "$@"; php="$2"; shift 2 ;; --aliases) need_arg "$@"; aliases="$2"; shift 2 ;;
+                *) error "Unknown option: $1"; return 1 ;;
+            esac; done
+            [[ -z "$domain" || -z "$user" ]] && { echo "Usage: llstack-ctl site create --domain <d> --user <u> [--php php83]"; return 1; }
+            info "Creating site $domain..."
+            local args=(--domain "$domain" --user "$user" --php "$php")
+            [[ -n "$aliases" ]] && args+=(--aliases "$aliases")
+            run_script site site-create.sh "${args[@]}"
+            info "Site $domain created"
+            ;;
+        delete)
+            local domain="" rm_files=false
+            while [[ $# -gt 0 ]]; do case "$1" in
+                --domain) need_arg "$@"; domain="$2"; shift 2 ;; --remove-files) rm_files=true; shift ;;
+                --yes) shift ;; # skip confirmation
+                *) error "Unknown option: $1"; return 1 ;;
+            esac; done
+            [[ -z "$domain" ]] && { echo "Usage: llstack-ctl site delete --domain <d> [--remove-files] [--yes]"; return 1; }
+            [[ " $* " != *"--yes"* ]] && confirm "Delete site $domain?"
+            local args=(--domain "$domain"); [[ "$rm_files" == "true" ]] && args+=(--remove-files)
+            info "Deleting site $domain..."
+            run_script site site-delete.sh "${args[@]}"
+            info "Site $domain deleted"
+            ;;
+        *)
+            echo "Usage: llstack-ctl site <list|create|delete>"
+            echo "  list                                  List all sites"
+            echo "  create --domain <d> --user <u> [--php php83]"
+            echo "  delete --domain <d> [--remove-files] [--yes]"
+            return 1
+            ;;
+    esac
+}
+
+# ============================================================================
+# PHP
+# ============================================================================
+cmd_php() {
+    local sub="${1:-help}"; shift || true
+    case "$sub" in
+        list)
+            header "Installed PHP Versions"
+            for ini in /etc/opt/remi/php*/php.ini; do
+                [[ -f "$ini" ]] || continue
+                local ver="${ini#/etc/opt/remi/}"; ver="${ver%/php.ini}"
+                local full=""
+                local lsphp="/opt/remi/${ver}/root/usr/bin/lsphp"
+                [[ -x "$lsphp" ]] && full=$($lsphp -v 2>/dev/null | head -1 | awk '{print $2}')
+                printf "  %-8s %s\n" "$ver" "$full"
+            done
+            ;;
+        install)
+            local ver=""
+            while [[ $# -gt 0 ]]; do case "$1" in --version) need_arg "$@"; ver="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$ver" ]] && { echo "Usage: llstack-ctl php install --version <83>"; return 1; }
+            info "Installing PHP ${ver:0:1}.${ver:1}..."
+            run_script php php-install.sh --version "$ver"
+            ;;
+        uninstall)
+            local ver=""
+            while [[ $# -gt 0 ]]; do case "$1" in --version) need_arg "$@"; ver="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$ver" ]] && { echo "Usage: llstack-ctl php uninstall --version <83>"; return 1; }
+            confirm "Uninstall PHP ${ver:0:1}.${ver:1}?"
+            run_script php php-uninstall.sh --version "$ver"
+            ;;
+        ext)
+            local ver="" ext=""
+            while [[ $# -gt 0 ]]; do case "$1" in --version) need_arg "$@"; ver="$2"; shift 2 ;; --ext) need_arg "$@"; ext="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$ver" || -z "$ext" ]] && { echo "Usage: llstack-ctl php ext --version <83> --ext <redis>"; return 1; }
+            info "Installing $ext for PHP ${ver:0:1}.${ver:1}..."
+            run_script php php-ext-install.sh --version "$ver" --ext "$ext"
+            ;;
+        config)
+            local ver="" key="" value=""
+            while [[ $# -gt 0 ]]; do case "$1" in --version) need_arg "$@"; ver="$2"; shift 2 ;; --key) need_arg "$@"; key="$2"; shift 2 ;; --value) need_arg "$@"; value="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$ver" || -z "$key" || -z "$value" ]] && { echo "Usage: llstack-ctl php config --version <83> --key <k> --value <v>"; return 1; }
+            run_script php php-ini-set.sh --version "$ver" --key "$key" --value "$value"
+            info "Set $key=$value for PHP ${ver:0:1}.${ver:1}"
+            ;;
+        *)
+            echo "Usage: llstack-ctl php <list|install|uninstall|ext|config>"
+            echo "  list                                     List installed versions"
+            echo "  install --version <83>                   Install PHP version"
+            echo "  uninstall --version <83>                 Uninstall PHP version"
+            echo "  ext --version <83> --ext <name>          Install extension"
+            echo "  config --version <83> --key <k> --value <v>"
+            return 1
+            ;;
+    esac
+}
+
+# ============================================================================
+# DB
+# ============================================================================
+cmd_db() {
+    local sub="${1:-help}"; shift || true
+    case "$sub" in
+        list)
+            header "Databases"
+            db_table "SELECT id, engine, name, host, port, connection_type AS type FROM db_instances ORDER BY id"
+            ;;
+        create)
+            local engine="mariadb" name="" user="" password=""
+            while [[ $# -gt 0 ]]; do case "$1" in
+                --engine) need_arg "$@"; engine="$2"; shift 2 ;; --name) need_arg "$@"; name="$2"; shift 2 ;;
+                --user) need_arg "$@"; user="$2"; shift 2 ;; --password) need_arg "$@"; password="$2"; shift 2 ;;
+                *) error "Unknown option: $1"; return 1 ;;
+            esac; done
+            [[ -z "$name" ]] && { echo "Usage: llstack-ctl db create --name <n> [--engine mariadb] [--user <u> --password <p>]"; return 1; }
+            local args=(--engine "$engine" --name "$name")
+            if [[ -n "$user" && -n "$password" ]]; then
+                local pw_file; pw_file=$(write_pw_file "$password")
+                args+=(--db-user "$user" --password-file "$pw_file")
+            fi
+            info "Creating database $name ($engine)..."
+            run_script db db-create.sh "${args[@]}"
+            info "Database $name created"
+            ;;
+        delete)
+            local engine="mariadb" name=""
+            while [[ $# -gt 0 ]]; do case "$1" in --engine) need_arg "$@"; engine="$2"; shift 2 ;; --name) need_arg "$@"; name="$2"; shift 2 ;; --yes) shift ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$name" ]] && { echo "Usage: llstack-ctl db delete --name <n> --engine <e> [--yes]"; return 1; }
+            confirm "Delete database $name ($engine)?"
+            run_script db db-delete.sh --engine "$engine" --name "$name"
+            info "Database $name deleted"
+            ;;
+        export)
+            local engine="mariadb" name="" schema_only=""
+            while [[ $# -gt 0 ]]; do case "$1" in --engine) need_arg "$@"; engine="$2"; shift 2 ;; --name) need_arg "$@"; name="$2"; shift 2 ;; --schema-only) schema_only="--schema-only"; shift ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$name" ]] && { echo "Usage: llstack-ctl db export --name <n> --engine <e> [--schema-only]"; return 1; }
+            run_script db db-export.sh --engine "$engine" --name "$name" $schema_only
+            ;;
+        import)
+            local engine="mariadb" name="" file=""
+            while [[ $# -gt 0 ]]; do case "$1" in --engine) need_arg "$@"; engine="$2"; shift 2 ;; --name) need_arg "$@"; name="$2"; shift 2 ;; --file) need_arg "$@"; file="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$name" || -z "$file" ]] && { echo "Usage: llstack-ctl db import --name <n> --engine <e> --file <f>"; return 1; }
+            info "Importing into $name..."
+            run_script db db-import.sh --engine "$engine" --name "$name" --file "$file"
+            info "Import complete"
+            ;;
+        clone)
+            local engine="mariadb" source="" target=""
+            while [[ $# -gt 0 ]]; do case "$1" in --engine) need_arg "$@"; engine="$2"; shift 2 ;; --source) need_arg "$@"; source="$2"; shift 2 ;; --target) need_arg "$@"; target="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$source" || -z "$target" ]] && { echo "Usage: llstack-ctl db clone --source <s> --target <t> --engine <e>"; return 1; }
+            info "Cloning $source → $target..."
+            run_script db db-clone.sh --engine "$engine" --source "$source" --target "$target"
+            info "Clone complete"
+            ;;
+        maintenance)
+            local engine="mariadb" name="" action="check"
+            while [[ $# -gt 0 ]]; do case "$1" in --engine) need_arg "$@"; engine="$2"; shift 2 ;; --name) need_arg "$@"; name="$2"; shift 2 ;; --action) need_arg "$@"; action="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$name" ]] && { echo "Usage: llstack-ctl db maintenance --name <n> --engine <e> --action <check|repair|optimize>"; return 1; }
+            info "Running $action on $name..."
+            run_script db db-maintenance.sh --engine "$engine" --name "$name" --action "$action"
+            ;;
+        processes)
+            local engine="${1:-mariadb}"
+            if [[ "$engine" == "postgresql" ]]; then
+                sudo -u postgres psql -c "SELECT pid, usename, datname, state, query FROM pg_stat_activity WHERE state != 'idle'" 2>/dev/null
+            else
+                mysql -e "SHOW FULL PROCESSLIST" 2>/dev/null
+            fi
+            ;;
+        *)
+            echo "Usage: llstack-ctl db <list|create|delete|export|import|clone|maintenance|processes>"
+            echo "  list                                   List databases"
+            echo "  create --name <n> [--engine mariadb] [--user <u> --password <p>]"
+            echo "  delete --name <n> --engine <e> [--yes]"
+            echo "  export --name <n> --engine <e> [--schema-only]"
+            echo "  import --name <n> --engine <e> --file <f>"
+            echo "  clone --source <s> --target <t> --engine <e>"
+            echo "  maintenance --name <n> --engine <e> --action <check|repair|optimize>"
+            echo "  processes [mariadb|postgresql]"
+            return 1
+            ;;
+    esac
+}
+
+# ============================================================================
+# REDIS
+# ============================================================================
+cmd_redis() {
+    local sub="${1:-help}"; shift || true
+    case "$sub" in
+        create)
+            local user="" maxmem="64" password=""
+            while [[ $# -gt 0 ]]; do case "$1" in --user) need_arg "$@"; user="$2"; shift 2 ;; --maxmemory) need_arg "$@"; maxmem="$2"; shift 2 ;; --password) need_arg "$@"; password="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$user" || -z "$password" ]] && { echo "Usage: llstack-ctl redis create --user <u> --password <p> [--maxmemory 64]"; return 1; }
+            info "Creating Redis instance for $user..."
+            sudo REDIS_PASSWORD="$password" bash "$SCRIPTS_DIR/redis/redis-instance-create.sh" --user "$user" --maxmemory "$maxmem"
+            info "Redis instance created"
+            ;;
+        status)
+            local user="" password=""
+            while [[ $# -gt 0 ]]; do case "$1" in --user) need_arg "$@"; user="$2"; shift 2 ;; --password) need_arg "$@"; password="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$user" ]] && { echo "Usage: llstack-ctl redis status --user <u> [--password <p>]"; return 1; }
+            sudo REDIS_PASSWORD="${password:-}" bash "$SCRIPTS_DIR/redis/redis-instance-status.sh" --user "$user"
+            ;;
+        control)
+            local user="" action=""
+            while [[ $# -gt 0 ]]; do case "$1" in --user) need_arg "$@"; user="$2"; shift 2 ;; --action) need_arg "$@"; action="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$user" || -z "$action" ]] && { echo "Usage: llstack-ctl redis control --user <u> --action <start|stop|restart>"; return 1; }
+            [[ "$action" =~ ^(start|stop|restart)$ ]] || { error "Invalid action: $action (must be start|stop|restart)"; return 1; }
+            run_script redis redis-instance-control.sh --user "$user" --action "$action"
+            info "Redis $action for $user"
+            ;;
+        delete)
+            local user=""
+            while [[ $# -gt 0 ]]; do case "$1" in --user) need_arg "$@"; user="$2"; shift 2 ;; --yes) shift ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$user" ]] && { echo "Usage: llstack-ctl redis delete --user <u> [--yes]"; return 1; }
+            confirm "Delete Redis instance for $user?"
+            run_script redis redis-instance-delete.sh --user "$user"
+            info "Redis instance deleted"
+            ;;
+        *)
+            echo "Usage: llstack-ctl redis <create|status|control|delete>"
+            echo "  create --user <u> --password <p> [--maxmemory 64]"
+            echo "  status --user <u> [--password <p>]"
+            echo "  control --user <u> --action <start|stop|restart>"
+            echo "  delete --user <u> [--yes]"
+            return 1
+            ;;
+    esac
+}
+
+# ============================================================================
+# WORDPRESS
+# ============================================================================
+cmd_wordpress() {
+    local sub="${1:-help}"; shift || true
+    case "$sub" in
+        list)
+            header "WordPress Instances"
+            db_table "SELECT w.id, s.domain, w.version, w.status, w.path FROM wp_instances w LEFT JOIN sites s ON w.site_id = s.id ORDER BY w.id"
+            ;;
+        scan)
+            info "Scanning for WordPress installations..."
+            run_script wordpress wp-scan.sh "$@"
+            ;;
+        install)
+            local path="" url="" title="WordPress" admin_user="admin" admin_email="" admin_pass="" locale="en_US"
+            local db_name="" db_user="" db_pass=""
+            while [[ $# -gt 0 ]]; do case "$1" in
+                --path) need_arg "$@"; path="$2"; shift 2 ;; --url) need_arg "$@"; url="$2"; shift 2 ;;
+                --title) need_arg "$@"; title="$2"; shift 2 ;; --admin-user) need_arg "$@"; admin_user="$2"; shift 2 ;;
+                --admin-email) need_arg "$@"; admin_email="$2"; shift 2 ;; --admin-password) need_arg "$@"; admin_pass="$2"; shift 2 ;;
+                --db-name) need_arg "$@"; db_name="$2"; shift 2 ;; --db-user) need_arg "$@"; db_user="$2"; shift 2 ;;
+                --db-password) need_arg "$@"; db_pass="$2"; shift 2 ;; --locale) need_arg "$@"; locale="$2"; shift 2 ;;
+                *) error "Unknown option: $1"; return 1 ;;
+            esac; done
+            [[ -z "$path" || -z "$url" || -z "$admin_email" || -z "$admin_pass" ]] && {
+                echo "Usage: llstack-ctl wordpress install --path <p> --url <u> --admin-email <e> --admin-password <p>"; return 1; }
+            local args=(--path "$path" --url "$url" --title "$title" --admin-user "$admin_user" --admin-email "$admin_email" --locale "$locale")
+            local pw_file; pw_file=$(write_pw_file "$admin_pass")
+            args+=(--admin-pass-file "$pw_file")
+            if [[ -n "$db_name" ]]; then
+                args+=(--db-name "$db_name" --db-user "${db_user:-$db_name}")
+                if [[ -n "$db_pass" ]]; then
+                    local db_pw_file; db_pw_file=$(write_pw_file "$db_pass")
+                    args+=(--db-pass-file "$db_pw_file")
                 fi
-                ;;
-            *) echo "Usage: llstack-ctl db <create|import|export|clone|processes> [options]"; exit 1 ;;
-        esac
-        ;;
+            fi
+            info "Installing WordPress at $path..."
+            run_script wordpress wp-install.sh "${args[@]}"
+            info "WordPress installed"
+            ;;
+        *)
+            echo "Usage: llstack-ctl wordpress <list|scan|install>"
+            echo "  list                                    List WP instances"
+            echo "  scan [--base-dir /home]                 Scan for WP installations"
+            echo "  install --path <p> --url <u> --admin-email <e> --admin-password <p>"
+            return 1
+            ;;
+    esac
+}
 
-    redis)
-        case "$ACTION" in
-            create)  sudo "$SCRIPTS_DIR/redis/redis-instance-create.sh" "$@" ;;
-            status)  sudo "$SCRIPTS_DIR/redis/redis-instance-status.sh" "$@" ;;
-            control) sudo "$SCRIPTS_DIR/redis/redis-instance-control.sh" "$@" ;;
-            *) echo "Usage: llstack-ctl redis <create|status|control> [options]"; exit 1 ;;
-        esac
-        ;;
+# ============================================================================
+# BACKUP
+# ============================================================================
+cmd_backup() {
+    local sub="${1:-help}"; shift || true
+    case "$sub" in
+        list)
+            header "Recent Backups"
+            db_table "SELECT b.id, COALESCE(s.domain,'system') AS site, b.type, b.size, b.created_at FROM backups b LEFT JOIN sites s ON b.site_id = s.id ORDER BY b.id DESC LIMIT 20"
+            ;;
+        create)
+            local site="" type="full" output=""
+            while [[ $# -gt 0 ]]; do case "$1" in --site) need_arg "$@"; site="$2"; shift 2 ;; --type) need_arg "$@"; type="$2"; shift 2 ;; --output) need_arg "$@"; output="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$site" ]] && { echo "Usage: llstack-ctl backup create --site <domain> [--type full|files|db]"; return 1; }
+            [[ "$type" =~ ^(full|files|db)$ ]] || { error "Invalid type: $type"; return 1; }
+            [[ -z "$output" ]] && output="/opt/llstack/backups/${site}_${type}_$(date +%s).tar.gz"
+            info "Creating $type backup for $site..."
+            run_script backup backup-create.sh --site "$site" --type "$type" --output "$output"
+            info "Backup saved: $output"
+            ;;
+        restore)
+            local path="" db_name=""
+            while [[ $# -gt 0 ]]; do case "$1" in --path) need_arg "$@"; path="$2"; shift 2 ;; --db-name) need_arg "$@"; db_name="$2"; shift 2 ;; --yes) shift ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$path" ]] && { echo "Usage: llstack-ctl backup restore --path <archive> [--db-name <n>] [--yes]"; return 1; }
+            confirm "Restore from $path? This will overwrite existing data."
+            local args=(--path "$path"); [[ -n "$db_name" ]] && args+=(--db-name "$db_name")
+            info "Restoring from $path..."
+            run_script backup backup-restore.sh "${args[@]}"
+            info "Restore complete"
+            ;;
+        snapshot)
+            info "Running restic auto-backup..."
+            run_script backup backup-restic-auto.sh
+            ;;
+        *)
+            echo "Usage: llstack-ctl backup <list|create|restore|snapshot>"
+            echo "  list                                    List recent backups"
+            echo "  create --site <domain> [--type full|files|db]"
+            echo "  restore --path <archive> [--db-name <n>] [--yes]"
+            echo "  snapshot                                Run restic auto-backup"
+            return 1
+            ;;
+    esac
+}
 
-    wordpress|wp)
-        case "$ACTION" in
-            scan)    sudo "$SCRIPTS_DIR/wordpress/wp-scan.sh" "$@" ;;
-            install) sudo "$SCRIPTS_DIR/wordpress/wp-install.sh" "$@" ;;
-            *) echo "Usage: llstack-ctl wordpress <scan|install> [options]"; exit 1 ;;
-        esac
-        ;;
+# ============================================================================
+# SSL
+# ============================================================================
+cmd_ssl() {
+    local sub="${1:-help}"; shift || true
+    case "$sub" in
+        issue)
+            local domain=""
+            while [[ $# -gt 0 ]]; do case "$1" in --domain) need_arg "$@"; domain="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$domain" ]] && { echo "Usage: llstack-ctl ssl issue --domain <d>"; return 1; }
+            info "Issuing SSL for $domain..."
+            run_script ssl ssl-issue.sh --domain "$domain"
+            ;;
+        renew)
+            info "Checking and renewing SSL certificates..."
+            run_script ssl ssl-check-renew.sh "$@"
+            ;;
+        *)
+            echo "Usage: llstack-ctl ssl <issue|renew>"
+            echo "  issue --domain <d>     Issue SSL certificate"
+            echo "  renew [--dry-run]      Renew expiring certificates"
+            return 1
+            ;;
+    esac
+}
 
-    ssl)
-        case "$ACTION" in
-            issue)  sudo "$SCRIPTS_DIR/ssl/ssl-issue.sh" "$@" ;;
-            renew)  sudo "$SCRIPTS_DIR/ssl/ssl-auto-renew.sh" "$@" ;;
-            *) echo "Usage: llstack-ctl ssl <issue|renew> [options]"; exit 1 ;;
-        esac
-        ;;
+# ============================================================================
+# USER
+# ============================================================================
+cmd_user() {
+    local sub="${1:-help}"; shift || true
+    case "$sub" in
+        list)
+            header "Panel Users"
+            db_table "SELECT id, username, role, system_user, created_at FROM users ORDER BY id"
+            ;;
+        create)
+            local username=""
+            while [[ $# -gt 0 ]]; do case "$1" in --username) need_arg "$@"; username="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$username" ]] && { echo "Usage: llstack-ctl user create --username <n>"; return 1; }
+            info "Creating system user $username..."
+            run_script user user-create.sh --username "$username"
+            info "System user $username created"
+            ;;
+        *)
+            echo "Usage: llstack-ctl user <list|create>"
+            echo "  list                    List panel users"
+            echo "  create --username <n>   Create system user"
+            return 1
+            ;;
+    esac
+}
 
-    system)
-        case "$ACTION" in
-            repair)    sudo "$SCRIPTS_DIR/system/llstack-repair.sh" "$@" ;;
-            cgroup)    sudo "$SCRIPTS_DIR/system/cgroup-status.sh" "$@" ;;
-            bandwidth) sudo "$SCRIPTS_DIR/system/bandwidth-collect.sh" "$@" ;;
-            *) echo "Usage: llstack-ctl system <repair|cgroup|bandwidth> [options]"; exit 1 ;;
-        esac
-        ;;
+# ============================================================================
+# SYSTEM
+# ============================================================================
+ALLOWED_SERVICES="lshttpd mariadb mysqld postgresql redis valkey llstack"
 
+cmd_system() {
+    local sub="${1:-help}"; shift || true
+    case "$sub" in
+        status)
+            header "System Info"
+            run_script monitoring sysinfo.sh || warn "sysinfo unavailable"
+            header "Service Status"
+            run_script monitoring service-status.sh || warn "service-status unavailable"
+            ;;
+        repair)
+            local component="all"
+            while [[ $# -gt 0 ]]; do case "$1" in --component) need_arg "$@"; component="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            confirm "Rebuild configs (component: $component)?"
+            info "Repairing ($component)..."
+            run_script system llstack-repair.sh --component "$component"
+            info "Repair complete"
+            ;;
+        restart)
+            local svc="${1:-}"
+            [[ -z "$svc" ]] && { echo "Usage: llstack-ctl system restart <lshttpd|mariadb|redis|...>"; return 1; }
+            # Allowlist check
+            if ! echo "$ALLOWED_SERVICES" | grep -qw "$svc"; then
+                error "Service '$svc' not in allowlist: $ALLOWED_SERVICES"; return 1
+            fi
+            info "Restarting $svc..."
+            sudo systemctl restart "$svc"
+            info "$svc restarted"
+            ;;
+        cgroup)
+            local user=""
+            while [[ $# -gt 0 ]]; do case "$1" in --user) need_arg "$@"; user="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            [[ -z "$user" ]] && { echo "Usage: llstack-ctl system cgroup --user <u>"; return 1; }
+            run_script system cgroup-status.sh --user "$user"
+            ;;
+        upgrade-check)
+            local svc="${1:-}"
+            [[ -z "$svc" ]] && { echo "Usage: llstack-ctl system upgrade-check <mariadb|postgresql|redis>"; return 1; }
+            run_script system service-upgrade.sh --service "$svc" --action check
+            ;;
+        *)
+            echo "Usage: llstack-ctl system <status|repair|restart|cgroup|upgrade-check>"
+            echo "  status                              System and service status"
+            echo "  repair [--component vhost|php|redis|cron|all]"
+            echo "  restart <service>                   Restart a system service"
+            echo "  cgroup --user <u>                   Show user cgroup limits"
+            echo "  upgrade-check <mariadb|postgresql|redis>"
+            return 1
+            ;;
+    esac
+}
+
+# ============================================================================
+# Main
+# ============================================================================
+cmd="${1:-help}"; shift || true
+
+case "$cmd" in
+    site)          cmd_site "$@" ;;
+    php)           cmd_php "$@" ;;
+    db)            cmd_db "$@" ;;
+    redis)         cmd_redis "$@" ;;
+    wordpress|wp)  cmd_wordpress "$@" ;;
+    backup)        cmd_backup "$@" ;;
+    ssl)           cmd_ssl "$@" ;;
+    user)          cmd_user "$@" ;;
+    system)        cmd_system "$@" ;;
+    version|-v|--version) echo "llstack-ctl v${VERSION}" ;;
+    help|-h|--help)
+        header "llstack-ctl v${VERSION}"
+        echo ""
+        echo "Usage: llstack-ctl <command> [subcommand] [options]"
+        echo ""
+        echo "Commands:"
+        echo "  site        Manage websites"
+        echo "  php         Manage PHP versions and extensions"
+        echo "  db          Manage databases"
+        echo "  redis       Manage per-user Redis/Valkey instances"
+        echo "  wordpress   Manage WordPress installations"
+        echo "  backup      Create and restore backups"
+        echo "  ssl         SSL certificate management"
+        echo "  user        Manage system users"
+        echo "  system      System status, repair, and services"
+        echo "  version     Show version"
+        echo ""
+        echo "Run 'llstack-ctl <command>' for subcommand help."
+        ;;
     *)
-        echo "Unknown module: $MODULE"
-        echo "Run 'llstack-ctl help' for usage"
+        error "Unknown command: $cmd"
+        echo "Run 'llstack-ctl help' for usage."
         exit 1
         ;;
 esac

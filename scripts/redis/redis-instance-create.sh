@@ -8,6 +8,10 @@ USER=""
 MAXMEMORY=64
 PASSWORD="${REDIS_PASSWORD:-}"
 
+# Detect redis-server/redis-cli or valkey equivalents
+REDIS_SERVER_BIN=$(command -v redis-server 2>/dev/null || command -v valkey-server 2>/dev/null || echo "/usr/bin/redis-server")
+REDIS_CLI_BIN=$(command -v redis-cli 2>/dev/null || command -v valkey-cli 2>/dev/null || echo "/usr/bin/redis-cli")
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --user)      USER="$2"; shift 2 ;;
@@ -99,10 +103,10 @@ chmod 600 "$REDIS_CONF"
 
 # 3. Create systemd template unit (if not exists)
 TEMPLATE="/etc/systemd/system/redis@.service"
-if [[ ! -f "$TEMPLATE" ]]; then
-    cat > "$TEMPLATE" << 'SVCEOF'
+if [[ ! -f "$TEMPLATE" ]] || ! grep -q "$REDIS_SERVER_BIN" "$TEMPLATE" 2>/dev/null; then
+    cat > "$TEMPLATE" <<SVCEOF
 [Unit]
-Description=Redis instance for %i
+Description=Redis/Valkey instance for %i
 After=network.target
 
 [Service]
@@ -110,8 +114,8 @@ Type=simple
 User=%i
 Group=%i
 EnvironmentFile=-/home/%i/.redis/env
-ExecStart=/usr/bin/redis-server /home/%i/.redis/redis.conf
-ExecStop=/bin/bash -c 'REDISCLI_AUTH="$REDIS_PASSWORD" /usr/bin/redis-cli -s /home/%i/.redis/redis.sock shutdown nosave'
+ExecStart=${REDIS_SERVER_BIN} /home/%i/.redis/redis.conf
+ExecStop=/bin/bash -c 'REDISCLI_AUTH="\$REDIS_PASSWORD" ${REDIS_CLI_BIN} -s /home/%i/.redis/redis.sock shutdown nosave'
 Restart=always
 RestartSec=5
 LimitNOFILE=10032

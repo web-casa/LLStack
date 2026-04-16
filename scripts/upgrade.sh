@@ -94,6 +94,8 @@ print('Migrations applied')
 # 6. Fix permissions
 chown -R llstack:llstack "$LLSTACK_DIR"
 chmod +x "$LLSTACK_DIR/scripts"/*/*.sh 2>/dev/null || true
+chmod +x "$LLSTACK_DIR/scripts/llstack-ctl" 2>/dev/null || true
+ln -sf "$LLSTACK_DIR/scripts/llstack-ctl" /usr/local/bin/llstack-ctl 2>/dev/null || true
 
 # 7. Restart service
 log "Restarting LLStack..."

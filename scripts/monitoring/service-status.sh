@@ -37,6 +37,7 @@ for entry in \
     "mysql|MySQL|mysqld" \
     "postgresql|PostgreSQL|postgresql" \
     "redis|Redis|redis" \
+    "valkey|Valkey|valkey" \
 ; do
     IFS='|' read -r name display unit <<< "$entry"
     line=$(check_service "$name" "$display" "$unit")
