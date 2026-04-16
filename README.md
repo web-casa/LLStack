@@ -1,106 +1,106 @@
-<div align="center">
-  <h1>LLStack</h1>
-  <p><strong>Open-source server management panel powered by LiteHttpd</strong></p>
-  <p>Apache-level .htaccess compatibility · LiteSpeed-level performance</p>
-  <p>
-    <a href="https://llstack.com">Documentation</a> · <a href="README_CN.md">简体中文</a> ·
-    <a href="https://llstack.com/guide/getting-started/">Quick Start</a> ·
-    <a href="https://llstack.com/reference/changelog/">Changelog</a>
-  </p>
-</div>
+# LLStack Panel
 
----
-
-## Quick Install
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/web-casa/LLStack/main/scripts/install.sh | sudo bash
-```
-
-After installation, open `https://your-server-ip:30333` to create your admin account.
-
-**Requirements**: AlmaLinux / Rocky Linux / CentOS Stream 9 or 10 · 1GB RAM · 5GB disk
+Open-source server control panel built on [LiteHttpd](https://rpms.litehttpd.com) (OpenLiteSpeed with Apache .htaccess compatibility).
 
 ## Features
 
-### Core
+- **Web Server**: LiteHttpd — OLS performance + 80 .htaccess directives
+- **PHP**: Multi-version via REMI (7.4–8.5), php-litespeed SAPI (not php-fpm)
+- **Databases**: MariaDB / MySQL / Percona / PostgreSQL (official repos)
+- **Redis**: Per-user isolated instances (Unix socket, systemd template)
+- **Sites**: Virtual host management, SSL (Let's Encrypt), .htaccess editor
+- **Security**: ALTCHA PoW login, 2FA/TOTP, LSBruteForce visual config
+- **File Manager**: Web file browser + CodeMirror editor (9 languages)
+- **Web Terminal**: xterm.js + WebSocket PTY
+- **Config Optimizer**: Auto-tune PHP/DB/Redis based on server resources
+- **Setup Wizard**: First-login guided installation with streaming logs
+- **Multi-user**: RBAC + plans (PHP/Redis/site quotas)
+- **Traffic Analytics**: Access log parsing, hourly charts, top pages/IPs
+- **Site Clone**: Full clone with WordPress domain replacement (staging mode)
+- **Remote Backup**: S3 / SFTP push support
+- **Notifications**: Email (SMTP) + Webhook (Slack/DingTalk/Feishu)
+- **PageSpeed**: Google PageSpeed Insights integration
+- **API Docs**: Auto-generated endpoint documentation
+- **i18n**: 简体中文 / 繁體中文 / English, dark/light theme, accent color customization
 
-| Feature | Description |
-|---------|-------------|
-| **LiteHttpd** | OpenLiteSpeed + 80 .htaccess directives, 2.5x Apache performance |
-| **Multi-PHP** | PHP 7.4 ~ 8.4 via REMI, php-litespeed SAPI (not php-fpm) |
-| **Databases** | MariaDB / PostgreSQL, import/export/clone/maintenance, Adminer SSO |
-| **Redis** | Per-user instances, Object Cache, ACL management (6.0+) |
-| **SSL** | Let's Encrypt auto-issue & renewal, manual upload, force HTTPS |
+## Requirements
 
-### WordPress Toolkit (24 API endpoints)
+- **OS**: AlmaLinux / Rocky Linux / CentOS Stream / RHEL — **EL9 or EL10**
+- **RAM**: 1GB minimum, 2GB+ recommended
+- **Disk**: 5GB minimum
 
-- One-click install, plugin/theme management, SSO login
-- **Wordfence CVE scanning** — 33,000+ vulnerabilities, CVSS scoring
-- Smart Update (clone → test → apply) + auto-update scheduling
-- Redis Object Cache integration
-- Auto-rollback on failure
+## Install
 
-### Operations
+```bash
+curl -sSL https://install.llstack.com | bash
+```
 
-| Feature | Description |
-|---------|-------------|
-| **Staging** | One-click clone, Push/Pull (files/database/all), domain auto-replace |
-| **Incremental Backup** | restic dedup + AES-256 encryption, 1h-24h scheduling, selective restore |
-| **CDN** | Cloudflare integration, one-click cache purge |
-| **Monitoring** | CPU/memory/disk, Redis trends, cgroup pressure |
+Or from source:
 
-### Security
+```bash
+git clone https://github.com/llstack/llstack-panel.git /opt/llstack-panel
+bash /opt/llstack-panel/scripts/install.sh
+```
 
-- **RBAC** — 4 roles: Owner / Admin / Developer / Viewer
-- **ALTCHA** — Proof-of-Work anti-brute-force (no CAPTCHA)
-- **2FA** — TOTP with Google Authenticator / Authy
-- JWT authentication, audit logging, per-site `disable_functions`
-- Plan quotas (max sites, max databases, disk quota)
-
-### More
-
-- File manager + WebSocket terminal (xterm.js)
-- Cron jobs, firewall (firewalld), log rotation
-- Apache migration (litehttpd-confconv)
-- App store (WordPress / Laravel / Typecho)
-- i18n: 简体中文 / 繁體中文 / English
+After install, open `https://<your-ip>:30333` to create your admin account and run the setup wizard.
 
 ## Architecture
 
 ```
 Browser → LiteHttpd :30333 (HTTPS)
-            ├── /api/*  → gunicorn :8001 (Flask + SQLite)
-            ├── /ws/*   → gunicorn :8001 (WebSocket terminal)
-            └── /*      → dist/ (React 19 + Radix UI)
+            ├── /api/*  → gunicorn :8001 (Flask)
+            ├── /ws/*   → gunicorn :8001 (WebSocket)
+            └── /*      → dist/ (static React)
 ```
 
-## Documentation
+- **Backend**: Python 3.12 + Flask, SQLite (WAL mode)
+- **Frontend**: React 19 + Radix UI + Vite (pre-built, no Node.js on server)
+- **Scripts**: 38 shell scripts for system operations via sudoers
 
-Full documentation available at **[llstack.com](https://llstack.com)**
+## Development
 
-- [IT Admin Guide](https://llstack.com/guide/for-admins/) — Installation, configuration, operations
-- [Site User Guide](https://llstack.com/guide/for-users/) — Managing sites, WordPress, databases
-- [Developer Guide](https://llstack.com/guide/for-developers/) — Full-stack workflow, API reference
-- [LiteHttpd Engine](https://llstack.com/guide/litehttpd/) — .htaccess compatibility, benchmarks
-- [FAQ](https://llstack.com/reference/faq/)
+```bash
+# Backend
+cd backend
+python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
+LLSTACK_DB_PATH=/tmp/dev.db .venv/bin/python wsgi.py
 
-## Performance
+# Frontend
+cd web
+npm install && npm run dev  # dev server with API proxy
 
-| Metric | Apache 2.4 | Stock OLS | LiteHttpd |
-|--------|:----------:|:---------:|:---------:|
-| Static RPS | 23,909 | 63,140 | **58,891** |
-| PHP RPS (wp-login) | 274 | 258 | **292** |
-| Memory | 818 MB | 654 MB | **689 MB** |
-| .htaccess compat | 10/10 | 6/10 | **10/10** |
+# Tests (52 tests)
+cd backend && .venv/bin/pytest tests/ -v
 
-*Tested on Linode 4C/8G, EL9, PHP 8.3, MariaDB 10.11*
+# Build for production
+cd web && npm run build  # output in dist/
+```
 
-## Related Projects
+## Project Structure
 
-- [LiteHttpd](https://litehttpd.com) — Apache-compatible lightweight web server
-- [WebCasa](https://web.casa) — AI-native server control panel
+```
+backend/           Flask API (21 modules)
+  app/api/         Auth, Sites, PHP, DB, Redis, Firewall, Cron, Backup,
+                   Monitoring, Users, AppStore, Files, Terminal,
+                   Htaccess, Migration, Optimizer, Setup Wizard, etc.
+  app/utils/       Shell runner, ALTCHA, validators, audit, task runner
+  tests/           pytest (52 tests)
+web/               React frontend
+  src/pages/       23 pages
+  src/components/  Shared components (StreamingLog, etc.)
+  dist/            Pre-built production bundle
+scripts/           38 shell scripts
+  site/            Site create/delete
+  php/             PHP install/uninstall/config
+  db/              DB create/delete/export + engine installers
+  redis/           Per-user instance management
+  ssl/             Let's Encrypt via acme.sh
+  install.sh       Server installer
+  upgrade.sh       Panel updater
+config/            LiteHttpd vhost templates
+docs4ai/           Developer documentation
+```
 
 ## License
 
-GPLv3 — See [LICENSE](LICENSE) for details.
+GPLv3
