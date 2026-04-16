@@ -67,6 +67,11 @@ else
     rsync -a "$TMPDIR/backend/" "$LLSTACK_DIR/backend/"
     rsync -a "$TMPDIR/web/" "$LLSTACK_DIR/web/"
     rsync -a "$TMPDIR/scripts/" "$LLSTACK_DIR/scripts/"
+    # Copy VERSION, versions.json, templates, config
+    cp "$TMPDIR/VERSION" "$LLSTACK_DIR/VERSION" 2>/dev/null || true
+    cp "$TMPDIR/versions.json" "$LLSTACK_DIR/versions.json" 2>/dev/null || true
+    rsync -a "$TMPDIR/templates/" "$LLSTACK_DIR/templates/" 2>/dev/null || true
+    rsync -a "$TMPDIR/config/" "$LLSTACK_DIR/config/" 2>/dev/null || true
     rm -rf "$TMPDIR"
 fi
 
@@ -102,14 +107,16 @@ systemctl restart llstack 2>/dev/null || {
         --log-file /var/log/llstack.log --timeout 120
 }
 
-sleep 2
+sleep 3
 
-# 8. Verify
-if curl -s http://127.0.0.1:30333/api/auth/need-setup -X POST | grep -q '"code":0'; then
-    log "Upgrade complete!"
+# 8. Verify — check service is running, not HTTP response (serve_app returns HTML for all paths)
+if systemctl is-active llstack &>/dev/null; then
+    NEW_VER=$(cat "$LLSTACK_DIR/VERSION" 2>/dev/null || echo "unknown")
+    log "Upgrade complete! Version: $NEW_VER"
     log "Backup saved at: $BACKUP_DIR-*"
 else
-    err "Upgrade may have failed. Check /var/log/llstack.log"
+    err "Upgrade may have failed. LLStack service not running."
+    err "Check: journalctl -u llstack --no-pager -n 30"
     err "Restore backup: cp -r $BACKUP_DIR-backend $LLSTACK_DIR/backend && cp -r $BACKUP_DIR-data $LLSTACK_DIR/data"
     exit 1
 fi
