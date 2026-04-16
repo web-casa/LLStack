@@ -5,7 +5,7 @@ set -euo pipefail
 # Usage: llstack-ctl <command> <subcommand> [options]
 # ============================================================================
 
-CLI_DIR="$(cd "$(dirname "$0")" && pwd)"
+CLI_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 SCRIPTS_DIR="${LLSTACK_SCRIPTS_DIR:-$CLI_DIR}"
 PANEL_DB="${LLSTACK_DB_PATH:-/opt/llstack/data/llstack.db}"
 VERSION="0.8.3"
