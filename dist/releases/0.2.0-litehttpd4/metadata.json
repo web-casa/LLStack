@@ -1,0 +1,8 @@
+{
+  "version": "0.2.0-litehttpd4",
+  "commit": "4243112",
+  "build_date": "2026-04-10T07:19:50Z",
+  "platforms": [
+    "linux/amd64"
+  ]
+}

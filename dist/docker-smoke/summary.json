@@ -1,0 +1,13 @@
+{
+  "generated_at": "2026-03-26T05:13:33Z",
+  "artifacts_dir": "/home/ivmm/llstack/dist/docker-smoke",
+  "overall_status": "passed",
+  "services": [
+    {"service":"el10-apache","status":"passed","log_path":"/home/ivmm/llstack/dist/docker-smoke/el10-apache.log","note":"success marker found"},
+    {"service":"el10-lsws","status":"passed","log_path":"/home/ivmm/llstack/dist/docker-smoke/el10-lsws.log","note":"success marker found"},
+    {"service":"el10-ols","status":"passed","log_path":"/home/ivmm/llstack/dist/docker-smoke/el10-ols.log","note":"success marker found"},
+    {"service":"el9-apache","status":"passed","log_path":"/home/ivmm/llstack/dist/docker-smoke/el9-apache.log","note":"success marker found"},
+    {"service":"el9-lsws","status":"passed","log_path":"/home/ivmm/llstack/dist/docker-smoke/el9-lsws.log","note":"success marker found"},
+    {"service":"el9-ols","status":"passed","log_path":"/home/ivmm/llstack/dist/docker-smoke/el9-ols.log","note":"success marker found"}
+  ]
+}

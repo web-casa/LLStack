@@ -1,0 +1,120 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 519B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.14kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/golang:1.24
+#3 DONE 0.4s
+
+#4 [internal] load metadata for docker.io/rockylinux/rockylinux:10
+#4 DONE 0.4s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 2B done
+#5 DONE 0.0s
+
+#6 [build 1/4] FROM docker.io/library/golang:1.24@sha256:d2d2bc1c84f7e60d7d2438a3836ae7d0c847f4888464e7ec9ba3a1339a1ee804
+#6 resolve docker.io/library/golang:1.24@sha256:d2d2bc1c84f7e60d7d2438a3836ae7d0c847f4888464e7ec9ba3a1339a1ee804 0.0s done
+#6 DONE 0.0s
+
+#7 [stage-1 1/5] FROM docker.io/rockylinux/rockylinux:10@sha256:f4da504c18e7aced902f4f728cde787cd9d9b817bc639fe171026d18364dca6c
+#7 resolve docker.io/rockylinux/rockylinux:10@sha256:f4da504c18e7aced902f4f728cde787cd9d9b817bc639fe171026d18364dca6c 0.0s done
+#7 DONE 0.0s
+
+#8 [internal] load build context
+#8 transferring context: 18.57kB done
+#8 DONE 0.0s
+
+#9 [build 2/4] WORKDIR /src
+#9 CACHED
+
+#10 [build 3/4] COPY . .
+#10 DONE 0.1s
+
+#11 [build 4/4] RUN target_os="linux" && target_arch="arm64" &&   CGO_ENABLED=0 GOOS="${target_os}" GOARCH="${target_arch}" go build   -trimpath   -ldflags "-s -w -X main.version=0.1.0-docker -X main.commit=unknown -X main.buildDate=unknown -X main.targetOS=${target_os} -X main.targetArch=${target_arch}"   -o /out/llstack   ./cmd/llstack
+#11 0.123 go: downloading github.com/spf13/cobra v1.9.1
+#11 0.126 go: downloading gopkg.in/yaml.v3 v3.0.1
+#11 0.133 go: downloading github.com/charmbracelet/bubbletea v1.3.4
+#11 0.133 go: downloading github.com/charmbracelet/lipgloss v1.1.0
+#11 1.524 go: downloading github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6
+#11 1.524 go: downloading github.com/charmbracelet/x/ansi v0.8.0
+#11 1.524 go: downloading github.com/charmbracelet/x/term v0.2.1
+#11 1.524 go: downloading golang.org/x/sync v0.11.0
+#11 1.525 go: downloading github.com/muesli/cancelreader v0.2.2
+#11 1.693 go: downloading github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd
+#11 1.694 go: downloading github.com/rivo/uniseg v0.4.7
+#11 1.699 go: downloading github.com/muesli/termenv v0.16.0
+#11 1.720 go: downloading github.com/spf13/pflag v1.0.6
+#11 2.437 go: downloading github.com/mattn/go-runewidth v0.0.16
+#11 2.439 go: downloading golang.org/x/sys v0.30.0
+#11 2.439 go: downloading github.com/lucasb-eyer/go-colorful v1.2.0
+#11 2.440 go: downloading github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc
+#11 2.613 go: downloading github.com/aymanbagabas/go-osc52/v2 v2.0.1
+#11 2.614 go: downloading github.com/mattn/go-isatty v0.0.20
+#11 4.188 go: downloading github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e
+#11 DONE 11.8s
+
+#12 [stage-1 2/5] RUN dnf -y install dnf sudo findutils tar gzip procps-ng iproute hostname shadow-utils && dnf clean all
+#12 CACHED
+
+#13 [stage-1 3/5] COPY --from=build /out/llstack /usr/local/bin/llstack
+#13 CACHED
+
+#14 [stage-1 4/5] COPY docker/fixtures/smoke.sh /usr/local/bin/llstack-docker-smoke
+#14 CACHED
+
+#15 [stage-1 5/5] RUN chmod +x /usr/local/bin/llstack /usr/local/bin/llstack-docker-smoke   && mkdir -p /usr/local/lsws/conf/vhosts /usr/local/lsws/conf/llstack/listeners /var/lib/llstack/state/parity
+#15 DONE 0.1s
+
+#16 exporting to image
+#16 exporting layers 0.1s done
+#16 exporting manifest sha256:635b33ad7882e512bbf453b1253b5ac74e5d90d86195e5726a33c6f33cdbb6a4 done
+#16 exporting config sha256:dee355dd0f815e3caea929d5505e2beecd74ef486e7a269edf70eddef53eb9a1 0.0s done
+#16 exporting attestation manifest sha256:037eb94fe59347db6133e43f78909cd15aaf34165702562853fc0e1e5d4841f8 0.0s done
+#16 exporting manifest list sha256:d7b26be1a96edc3d4f7ce55a5f1c1667751d1eba3da18676ab0f4d94f9ba696f 0.0s done
+#16 naming to docker.io/library/compose-el10-ols:latest done
+#16 unpacking to docker.io/library/compose-el10-ols:latest 0.0s done
+#16 DONE 0.2s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+Attaching to el10-ols-1
+el10-ols-1  | docker smoke summary:
+el10-ols-1  | {
+el10-ols-1  |   "backend": "ols",
+el10-ols-1  |   "site": "el10-ols.example.com",
+el10-ols-1  |   "checks": [
+el10-ols-1  |     "version",
+el10-ols-1  |     "status",
+el10-ols-1  |     "install_dry_run",
+el10-ols-1  |     "site_create_apply",
+el10-ols-1  |     "site_diff",
+el10-ols-1  |     "site_update",
+el10-ols-1  |     "site_tls_dry_run",
+el10-ols-1  |     "site_stop_start",
+el10-ols-1  |     "doctor"
+el10-ols-1  |   ],
+el10-ols-1  |   "status": "passed"
+el10-ols-1  | }
+[Kel10-ols-1 exited with code 0
+el10-ols-1  | time=2026-03-26T05:12:51.467Z level=INFO msg="site created" site=el10-ols.example.com backend=ols
+el10-ols-1  | docker smoke summary:
+el10-ols-1  | {
+el10-ols-1  |   "backend": "ols",
+el10-ols-1  |   "site": "el10-ols.example.com",
+el10-ols-1  |   "checks": [
+el10-ols-1  |     "version",
+el10-ols-1  |     "status",
+el10-ols-1  |     "install_dry_run",
+el10-ols-1  |     "site_create_apply",
+el10-ols-1  |     "site_diff",
+el10-ols-1  |     "site_update",
+el10-ols-1  |     "site_tls_dry_run",
+el10-ols-1  |     "site_stop_start",
+el10-ols-1  |     "doctor"
+el10-ols-1  |   ],
+el10-ols-1  |   "status": "passed"
+el10-ols-1  | }

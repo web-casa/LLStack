@@ -1,0 +1,120 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 519B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.19kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/rockylinux:9
+#3 DONE 0.0s
+
+#4 [internal] load metadata for docker.io/library/golang:1.24
+#4 DONE 0.4s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 2B done
+#5 DONE 0.0s
+
+#6 [build 1/4] FROM docker.io/library/golang:1.24@sha256:d2d2bc1c84f7e60d7d2438a3836ae7d0c847f4888464e7ec9ba3a1339a1ee804
+#6 resolve docker.io/library/golang:1.24@sha256:d2d2bc1c84f7e60d7d2438a3836ae7d0c847f4888464e7ec9ba3a1339a1ee804 0.0s done
+#6 DONE 0.0s
+
+#7 [stage-1 1/5] FROM docker.io/library/rockylinux:9@sha256:d7be1c094cc5845ee815d4632fe377514ee6ebcf8efaed6892889657e5ddaaa6
+#7 resolve docker.io/library/rockylinux:9@sha256:d7be1c094cc5845ee815d4632fe377514ee6ebcf8efaed6892889657e5ddaaa6 0.0s done
+#7 DONE 0.0s
+
+#8 [internal] load build context
+#8 transferring context: 19.03kB done
+#8 DONE 0.0s
+
+#9 [build 2/4] WORKDIR /src
+#9 CACHED
+
+#10 [build 3/4] COPY . .
+#10 DONE 0.1s
+
+#11 [build 4/4] RUN target_os="linux" && target_arch="arm64" &&   CGO_ENABLED=0 GOOS="${target_os}" GOARCH="${target_arch}" go build   -trimpath   -ldflags "-s -w -X main.version=0.1.0-docker -X main.commit=unknown -X main.buildDate=unknown -X main.targetOS=${target_os} -X main.targetArch=${target_arch}"   -o /out/llstack   ./cmd/llstack
+#11 0.130 go: downloading github.com/spf13/cobra v1.9.1
+#11 0.134 go: downloading github.com/charmbracelet/bubbletea v1.3.4
+#11 0.134 go: downloading github.com/charmbracelet/lipgloss v1.1.0
+#11 0.142 go: downloading gopkg.in/yaml.v3 v3.0.1
+#11 1.686 go: downloading github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6
+#11 1.686 go: downloading github.com/charmbracelet/x/ansi v0.8.0
+#11 1.687 go: downloading golang.org/x/sync v0.11.0
+#11 1.687 go: downloading github.com/charmbracelet/x/term v0.2.1
+#11 1.688 go: downloading github.com/muesli/cancelreader v0.2.2
+#11 1.748 go: downloading github.com/rivo/uniseg v0.4.7
+#11 1.748 go: downloading github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd
+#11 1.748 go: downloading github.com/muesli/termenv v0.16.0
+#11 1.876 go: downloading github.com/spf13/pflag v1.0.6
+#11 2.654 go: downloading golang.org/x/sys v0.30.0
+#11 2.654 go: downloading github.com/mattn/go-runewidth v0.0.16
+#11 2.663 go: downloading github.com/lucasb-eyer/go-colorful v1.2.0
+#11 2.664 go: downloading github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc
+#11 2.837 go: downloading github.com/mattn/go-isatty v0.0.20
+#11 2.837 go: downloading github.com/aymanbagabas/go-osc52/v2 v2.0.1
+#11 4.540 go: downloading github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e
+#11 DONE 12.1s
+
+#12 [stage-1 2/5] RUN dnf -y install dnf sudo findutils tar gzip procps-ng iproute hostname shadow-utils && dnf clean all
+#12 CACHED
+
+#13 [stage-1 3/5] COPY --from=build /out/llstack /usr/local/bin/llstack
+#13 CACHED
+
+#14 [stage-1 4/5] COPY docker/fixtures/smoke.sh /usr/local/bin/llstack-docker-smoke
+#14 CACHED
+
+#15 [stage-1 5/5] RUN chmod +x /usr/local/bin/llstack /usr/local/bin/llstack-docker-smoke   && mkdir -p /usr/local/lsws/conf/llstack/includes /var/lib/llstack/state/parity /usr/local/lsws/conf   && printf '%s\n' 'trial-license' >/usr/local/lsws/conf/serial.no
+#15 CACHED
+
+#16 exporting to image
+#16 exporting layers done
+#16 exporting manifest sha256:cc2821f80fd4884e2d955f5542befe47c8b6bc6504c161f9f01b013d640f554d done
+#16 exporting config sha256:5952e8c496b0f06812a48fd54e10fe045f283d84b1b55161dbced4cee93aac5d done
+#16 exporting attestation manifest sha256:73eb424c9caa19c7cbea13cb660c772035090296b1bd23cff80d7f41baf92093 0.0s done
+#16 exporting manifest list sha256:a9262bf679b849b182dbbe719cce9a226da0ecc64f314face974eacbbb926e19 0.0s done
+#16 naming to docker.io/library/compose-el9-lsws:latest done
+#16 unpacking to docker.io/library/compose-el9-lsws:latest done
+#16 DONE 0.1s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+Attaching to el9-lsws-1
+el9-lsws-1  | docker smoke summary:
+el9-lsws-1  | {
+el9-lsws-1  |   "backend": "lsws",
+el9-lsws-1  |   "site": "el9-lsws.example.com",
+el9-lsws-1  |   "checks": [
+el9-lsws-1  |     "version",
+el9-lsws-1  |     "status",
+el9-lsws-1  |     "install_dry_run",
+el9-lsws-1  |     "site_create_apply",
+el9-lsws-1  |     "site_diff",
+el9-lsws-1  |     "site_update",
+el9-lsws-1  |     "site_tls_dry_run",
+el9-lsws-1  |     "site_stop_start",
+el9-lsws-1  |     "doctor"
+el9-lsws-1  |   ],
+el9-lsws-1  |   "status": "passed"
+el9-lsws-1  | }
+[Kel9-lsws-1 exited with code 0
+el9-lsws-1  | time=2026-03-26T05:13:17.950Z level=INFO msg="site created" site=el9-lsws.example.com backend=lsws
+el9-lsws-1  | docker smoke summary:
+el9-lsws-1  | {
+el9-lsws-1  |   "backend": "lsws",
+el9-lsws-1  |   "site": "el9-lsws.example.com",
+el9-lsws-1  |   "checks": [
+el9-lsws-1  |     "version",
+el9-lsws-1  |     "status",
+el9-lsws-1  |     "install_dry_run",
+el9-lsws-1  |     "site_create_apply",
+el9-lsws-1  |     "site_diff",
+el9-lsws-1  |     "site_update",
+el9-lsws-1  |     "site_tls_dry_run",
+el9-lsws-1  |     "site_stop_start",
+el9-lsws-1  |     "doctor"
+el9-lsws-1  |   ],
+el9-lsws-1  |   "status": "passed"
+el9-lsws-1  | }
