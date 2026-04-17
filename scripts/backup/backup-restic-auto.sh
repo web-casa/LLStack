@@ -33,11 +33,31 @@ while IFS='|' read -r domain doc_root; do
 
     echo "[$(date)] Backing up: $domain"
 
-    # Check for associated database (use Python for safe parameterized query)
+    # Check for associated database — FK first (scoped + oldest), wp-config.php fallback
     DB_NAME=$(python3 -c "
-import sqlite3, sys
+import sqlite3, sys, re, os
 conn = sqlite3.connect(sys.argv[1])
-r = conn.execute('SELECT di.name FROM db_instances di WHERE di.user_id = (SELECT user_id FROM sites WHERE domain = ?) LIMIT 1', (sys.argv[2],)).fetchone()
+domain = sys.argv[2]
+# Primary: site_id FK scoped to site owner
+r = conn.execute(
+    'SELECT di.name FROM db_instances di JOIN sites s ON s.id = di.site_id '
+    'WHERE s.domain = ? AND di.user_id = s.user_id ORDER BY di.id ASC LIMIT 1',
+    (domain,)
+).fetchone()
+if not r:
+    # Fallback: parse wp-config.php of site's WP instance
+    wp = conn.execute(
+        'SELECT w.path FROM wp_instances w JOIN sites s ON s.id = w.site_id WHERE s.domain = ? LIMIT 1',
+        (domain,)
+    ).fetchone()
+    if wp and wp[0]:
+        try:
+            with open(os.path.join(wp[0], 'wp-config.php')) as f:
+                m = re.search(r\"define\\(\\s*['\\\"]DB_NAME['\\\"]\\s*,\\s*['\\\"]([^'\\\"]+)['\\\"]\", f.read())
+                if m:
+                    r = (m.group(1),)
+        except OSError:
+            pass
 print(r[0] if r else '')
 " "$DB_PATH" "$domain" 2>/dev/null || true)
 

@@ -258,8 +258,18 @@ setup_firewall() {
     fi
 }
 
+get_public_ip() {
+    # Try multiple services for reliability
+    local ip=""
+    ip=$(curl -s --max-time 3 https://api.ipify.org 2>/dev/null) && [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && echo "$ip" && return
+    ip=$(curl -s --max-time 3 https://ifconfig.me 2>/dev/null) && [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && echo "$ip" && return
+    ip=$(curl -s --max-time 3 https://icanhazip.com 2>/dev/null | tr -d '[:space:]') && [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && echo "$ip" && return
+    # Fallback to local IP
+    hostname -I | awk '{print $1}'
+}
+
 print_summary() {
-    local ip=$(hostname -I | awk '{print $1}')
+    local ip=$(get_public_ip)
     echo ""
     echo -e "${GREEN}============================================${NC}"
     echo -e "${GREEN}  LLStack installed successfully!${NC}"

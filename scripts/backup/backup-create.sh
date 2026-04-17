@@ -7,12 +7,14 @@ set -euo pipefail
 SITE=""
 TYPE="full"
 OUTPUT=""
+DB_NAME_OVERRIDE=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --site)   SITE="$2"; shift 2 ;;
-        --type)   TYPE="$2"; shift 2 ;;
-        --output) OUTPUT="$2"; shift 2 ;;
+        --site)    SITE="$2"; shift 2 ;;
+        --type)    TYPE="$2"; shift 2 ;;
+        --output)  OUTPUT="$2"; shift 2 ;;
+        --db-name) DB_NAME_OVERRIDE="$2"; shift 2 ;;
         *) echo '{"ok": false, "error": "unknown_arg"}' >&2; exit 1 ;;
     esac
 done
@@ -59,15 +61,26 @@ if [[ "$TYPE" == "full" || "$TYPE" == "files" ]]; then
     fi
 fi
 
-# Backup database (attempt MySQL dump if db exists with site name patterns)
+# Backup database (prefer explicit --db-name, else try common WP naming patterns)
 if [[ "$TYPE" == "full" || "$TYPE" == "db" ]]; then
-    DB_NAME=$(echo "$SITE" | tr '.' '_' | tr '-' '_')
-    # Validate derived DB name
-    if ! echo "$DB_NAME" | grep -qP '^[a-zA-Z_][a-zA-Z0-9_]{0,63}$'; then
-        echo "    Skipping database: invalid derived name '$DB_NAME'"
-    elif mysql -e "USE \`$DB_NAME\`" 2>/dev/null; then
-        mysqldump "$DB_NAME" 2>/dev/null | gzip > "$TMPDIR/database.sql.gz"
+    DB_CANDIDATES=()
+    if [[ -n "$DB_NAME_OVERRIDE" ]]; then
+        DB_CANDIDATES+=("$DB_NAME_OVERRIDE")
+    else
+        SITE_SLUG=$(echo "$SITE" | tr '.' '_' | tr '-' '_')
+        # WP install_quick uses wp_<slug[:20]>; staging uses <slug[:32]>_stg
+        DB_CANDIDATES+=("wp_${SITE_SLUG:0:20}" "${SITE_SLUG:0:32}_stg" "$SITE_SLUG")
     fi
+    for DB_NAME in "${DB_CANDIDATES[@]}"; do
+        if ! echo "$DB_NAME" | grep -qP '^[a-zA-Z_][a-zA-Z0-9_]{0,63}$'; then
+            continue
+        fi
+        if mysql -e "USE \`$DB_NAME\`" 2>/dev/null; then
+            mysqldump "$DB_NAME" 2>/dev/null | gzip > "$TMPDIR/database.sql.gz"
+            echo "    Database backed up: $DB_NAME"
+            break
+        fi
+    done
 fi
 
 # Create final archive

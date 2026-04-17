@@ -76,14 +76,14 @@ cmd_site() {
             info "Site $domain created"
             ;;
         delete)
-            local domain="" rm_files=false
+            local domain="" rm_files=false assume_yes=false
             while [[ $# -gt 0 ]]; do case "$1" in
                 --domain) need_arg "$@"; domain="$2"; shift 2 ;; --remove-files) rm_files=true; shift ;;
-                --yes) shift ;; # skip confirmation
+                --yes) assume_yes=true; shift ;;
                 *) error "Unknown option: $1"; return 1 ;;
             esac; done
             [[ -z "$domain" ]] && { echo "Usage: llstack-ctl site delete --domain <d> [--remove-files] [--yes]"; return 1; }
-            [[ " $* " != *"--yes"* ]] && confirm "Delete site $domain?"
+            [[ "$assume_yes" != "true" ]] && confirm "Delete site $domain?"
             local args=(--domain "$domain"); [[ "$rm_files" == "true" ]] && args+=(--remove-files)
             info "Deleting site $domain..."
             run_script site site-delete.sh "${args[@]}"
@@ -184,10 +184,10 @@ cmd_db() {
             info "Database $name created"
             ;;
         delete)
-            local engine="mariadb" name=""
-            while [[ $# -gt 0 ]]; do case "$1" in --engine) need_arg "$@"; engine="$2"; shift 2 ;; --name) need_arg "$@"; name="$2"; shift 2 ;; --yes) shift ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            local engine="mariadb" name="" assume_yes=false
+            while [[ $# -gt 0 ]]; do case "$1" in --engine) need_arg "$@"; engine="$2"; shift 2 ;; --name) need_arg "$@"; name="$2"; shift 2 ;; --yes) assume_yes=true; shift ;; *) error "Unknown option: $1"; return 1 ;; esac; done
             [[ -z "$name" ]] && { echo "Usage: llstack-ctl db delete --name <n> --engine <e> [--yes]"; return 1; }
-            confirm "Delete database $name ($engine)?"
+            [[ "$assume_yes" != "true" ]] && confirm "Delete database $name ($engine)?"
             run_script db db-delete.sh --engine "$engine" --name "$name"
             info "Database $name deleted"
             ;;
@@ -254,14 +254,15 @@ cmd_redis() {
             while [[ $# -gt 0 ]]; do case "$1" in --user) need_arg "$@"; user="$2"; shift 2 ;; --maxmemory) need_arg "$@"; maxmem="$2"; shift 2 ;; --password) need_arg "$@"; password="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
             [[ -z "$user" || -z "$password" ]] && { echo "Usage: llstack-ctl redis create --user <u> --password <p> [--maxmemory 64]"; return 1; }
             info "Creating Redis instance for $user..."
-            sudo REDIS_PASSWORD="$password" bash "$SCRIPTS_DIR/redis/redis-instance-create.sh" --user "$user" --maxmemory "$maxmem"
+            local pw_file; pw_file=$(write_pw_file "$password")
+            sudo REDIS_PASSWORD="$(cat "$pw_file")" bash "$SCRIPTS_DIR/redis/redis-instance-create.sh" --user "$user" --maxmemory "$maxmem"
             info "Redis instance created"
             ;;
         status)
             local user="" password=""
             while [[ $# -gt 0 ]]; do case "$1" in --user) need_arg "$@"; user="$2"; shift 2 ;; --password) need_arg "$@"; password="$2"; shift 2 ;; *) error "Unknown option: $1"; return 1 ;; esac; done
             [[ -z "$user" ]] && { echo "Usage: llstack-ctl redis status --user <u> [--password <p>]"; return 1; }
-            sudo REDIS_PASSWORD="${password:-}" bash "$SCRIPTS_DIR/redis/redis-instance-status.sh" --user "$user"
+            sudo --preserve-env=REDIS_PASSWORD REDIS_PASSWORD="${password:-}" bash "$SCRIPTS_DIR/redis/redis-instance-status.sh" --user "$user"
             ;;
         control)
             local user="" action=""
@@ -272,10 +273,10 @@ cmd_redis() {
             info "Redis $action for $user"
             ;;
         delete)
-            local user=""
-            while [[ $# -gt 0 ]]; do case "$1" in --user) need_arg "$@"; user="$2"; shift 2 ;; --yes) shift ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            local user="" assume_yes=false
+            while [[ $# -gt 0 ]]; do case "$1" in --user) need_arg "$@"; user="$2"; shift 2 ;; --yes) assume_yes=true; shift ;; *) error "Unknown option: $1"; return 1 ;; esac; done
             [[ -z "$user" ]] && { echo "Usage: llstack-ctl redis delete --user <u> [--yes]"; return 1; }
-            confirm "Delete Redis instance for $user?"
+            [[ "$assume_yes" != "true" ]] && confirm "Delete Redis instance for $user?"
             run_script redis redis-instance-delete.sh --user "$user"
             info "Redis instance deleted"
             ;;
@@ -362,10 +363,10 @@ cmd_backup() {
             info "Backup saved: $output"
             ;;
         restore)
-            local path="" db_name=""
-            while [[ $# -gt 0 ]]; do case "$1" in --path) need_arg "$@"; path="$2"; shift 2 ;; --db-name) need_arg "$@"; db_name="$2"; shift 2 ;; --yes) shift ;; *) error "Unknown option: $1"; return 1 ;; esac; done
+            local path="" db_name="" assume_yes=false
+            while [[ $# -gt 0 ]]; do case "$1" in --path) need_arg "$@"; path="$2"; shift 2 ;; --db-name) need_arg "$@"; db_name="$2"; shift 2 ;; --yes) assume_yes=true; shift ;; *) error "Unknown option: $1"; return 1 ;; esac; done
             [[ -z "$path" ]] && { echo "Usage: llstack-ctl backup restore --path <archive> [--db-name <n>] [--yes]"; return 1; }
-            confirm "Restore from $path? This will overwrite existing data."
+            [[ "$assume_yes" != "true" ]] && confirm "Restore from $path? This will overwrite existing data."
             local args=(--path "$path"); [[ -n "$db_name" ]] && args+=(--db-name "$db_name")
             info "Restoring from $path..."
             run_script backup backup-restore.sh "${args[@]}"

@@ -17,7 +17,17 @@ done
 
 case "$SERVICE" in
     mariadb) PKG="MariaDB-server" SVC="mariadb" ;;
-    postgresql) PKG="postgresql-server" SVC="postgresql" ;;
+    postgresql)
+        # Detect versioned PGDG install (postgresql16-server, postgresql17-server, etc.)
+        PKG="postgresql-server" SVC="postgresql"
+        for ver in 18 17 16 15 14; do
+            if rpm -q "postgresql${ver}-server" &>/dev/null; then
+                PKG="postgresql${ver}-server"
+                SVC="postgresql-${ver}"
+                break
+            fi
+        done
+        ;;
     redis)
         # Detect Redis or Valkey
         if rpm -q valkey &>/dev/null; then
