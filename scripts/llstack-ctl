@@ -8,7 +8,7 @@ set -euo pipefail
 CLI_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 SCRIPTS_DIR="${LLSTACK_SCRIPTS_DIR:-$CLI_DIR}"
 PANEL_DB="${LLSTACK_DB_PATH:-/opt/llstack/data/llstack.db}"
-VERSION="0.8.3"
+VERSION=$(cat /opt/llstack/VERSION 2>/dev/null || echo "unknown")
 
 # ── Colors ──
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'

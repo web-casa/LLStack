@@ -19,8 +19,8 @@ cd "$TMPDIR"
 tar --no-same-owner xzf "$PATH_ARG"
 # Restore files
 if [[ -f files.tar.gz ]]; then
-    # Check for path traversal attempts
-    if tar tzf files.tar.gz | grep -qE '^\.\./|^/'; then
+    # Reject absolute paths, leading .., or any .. path component (e.g. home/user/../../etc)
+    if tar tzf files.tar.gz | grep -qE '^/|(^|/)\.\.(/|$)'; then
         echo '{"ok":false,"error":"path_traversal_detected","message":"Archive contains absolute or parent paths"}' >&2
         exit 1
     fi
