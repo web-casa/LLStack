@@ -1,16 +1,26 @@
 <div align="center">
-  <h1>LLStack</h1>
+  <img src="logo/logo.svg" alt="LLStack" width="96" />
+  <h1>LLStack 面板</h1>
   <p><strong>基于 LiteHttpd 的开源服务器管理面板</strong></p>
-  <p>Apache 级别的 .htaccess 兼容性 · LiteSpeed 级别的性能</p>
+  <p>Apache 级别的 <code>.htaccess</code> 兼容性 · LiteSpeed 级别的性能</p>
   <p>
-    <a href="https://llstack.com">文档站</a> ·
-    <a href="https://llstack.com/guide/getting-started/">快速开始</a> ·
+    <a href="https://llstack.com">官网 & 文档</a> ·
+    <a href="https://demo.llstack.com">在线 Demo</a> ·
     <a href="https://llstack.com/reference/changelog/">更新日志</a> ·
-    <a href="README.md">English</a>
+    <a href="README.md">English</a> ·
+    <a href="README_TW.md">繁體中文</a>
   </p>
 </div>
 
 ---
+
+## 界面预览
+
+<div align="center">
+  <img src="snapshots/001.png" alt="仪表盘" width="90%" />
+  <img src="snapshots/002.png" alt="站点管理" width="90%" />
+  <img src="snapshots/003.png" alt="WordPress 工具箱" width="90%" />
+</div>
 
 ## 一键安装
 
@@ -29,8 +39,8 @@ curl -fsSL https://raw.githubusercontent.com/web-casa/LLStack/main/scripts/insta
 | 功能 | 说明 |
 |------|------|
 | **LiteHttpd 引擎** | OpenLiteSpeed + 80 种 .htaccess 指令，2.5 倍 Apache 性能 |
-| **PHP 多版本** | PHP 7.4 ~ 8.4 (REMI 仓库)，php-litespeed SAPI（非 php-fpm） |
-| **数据库管理** | MariaDB / PostgreSQL，导入导出克隆维护，Adminer SSO |
+| **PHP 多版本** | PHP 7.4 ~ 8.5 (REMI 仓库)，php-litespeed SAPI（非 php-fpm） |
+| **数据库管理** | MariaDB / MySQL / Percona / PostgreSQL，导入导出克隆维护，Adminer SSO |
 | **Redis 管理** | 用户隔离实例，对象缓存，ACL 权限管理 (6.0+) |
 | **SSL 证书** | Let's Encrypt 自动签发续期，手动上传，强制 HTTPS |
 
@@ -47,7 +57,7 @@ curl -fsSL https://raw.githubusercontent.com/web-casa/LLStack/main/scripts/insta
 | 功能 | 说明 |
 |------|------|
 | **Staging 环境** | 一键克隆，Push/Pull（文件/数据库/全部），域名自动替换 |
-| **增量备份** | restic 去重 + AES-256 加密，1h-24h 定时调度，选择性恢复 |
+| **增量备份** | restic 去重 + AES-256 加密，1h–24h 定时调度，选择性恢复 |
 | **CDN 集成** | Cloudflare 一键配置，缓存清除 |
 | **系统监控** | CPU/内存/磁盘，Redis 趋势，cgroup 压力 |
 
@@ -75,6 +85,10 @@ curl -fsSL https://raw.githubusercontent.com/web-casa/LLStack/main/scripts/insta
             ├── /ws/*   → gunicorn :8001 (WebSocket 终端)
             └── /*      → dist/ (React 19 + Radix UI)
 ```
+
+- **后端**：Python 3.12 + Flask，SQLite (WAL 模式)，245+ pytest 测试
+- **前端**：React 19 + Radix UI + Vite（预构建，服务器无需 Node.js）
+- **脚本**：43 个 shell 脚本，通过 sudoers 调用
 
 ## 文档
 
