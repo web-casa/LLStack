@@ -1,1 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" t="1775926509186" class="icon" viewBox="0 0 1024 1024" p-id="9342" data-spm-anchor-id="a313x.search_index.0.i7.3ee93a81DHN3ZM" width="256" height="256"><metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description><dc:creator>RealFaviconGenerator</dc:creator><dc:source>https://realfavicongenerator.net</dc:source></rdf:Description></rdf:RDF></metadata><path d="M708.5 268.2c-41-83-126.2-140.2-224.9-140.2-132.4 0-240.6 102.6-250 232.6C136.3 388.4 65.4 473.4 65.4 574c0 118.7 98.7 215.5 223 222.3 0 0 385.5 0.7 390.3 0.7 146.3 0 278.8-118.6 278.8-264.8 0-140.9-110.2-255.8-249-264zM534.2 640.4c-6.1 14.6-21.8 21.1-35.1 14.5-13.4-6.6-19.3-23.8-13.2-38.5l70.9-125.7-118.9 0.8c-11.8 0-21.8-7.4-25.8-17.8-3-6.7-3.5-14.6-0.4-21.9l63.8-154.6c5.9-14.2 22.2-21 36.4-15.1s21 22.2 15.1 36.4l-43.3 116.2h111.5c15.4 0 27.9 12.5 27.9 27.9-0.1 16.4-88.9 177.8-88.9 177.8z" fill="#badc58" p-id="9343" data-spm-anchor-id="a313x.search_index.0.i5.3ee93a81DHN3ZM" class=""></path></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" color="#10B981">
+  <g fill="currentColor" transform="translate(-4 0) skewX(-14)">
+    <rect x="22" y="28" width="58" height="8" rx="4"/>
+    <rect x="22" y="42" width="48" height="8" rx="4" opacity="0.85"/>
+    <rect x="22" y="56" width="38" height="8" rx="4" opacity="0.7"/>
+    <rect x="22" y="70" width="28" height="8" rx="4" opacity="0.55"/>
+  </g>
+  <g fill="currentColor">
+    <circle cx="78" cy="32" r="2.5"/>
+    <circle cx="70" cy="46" r="2.2" opacity="0.85"/>
+    <circle cx="62" cy="60" r="1.9" opacity="0.7"/>
+    <circle cx="54" cy="74" r="1.6" opacity="0.55"/>
+  </g>
+</svg>
